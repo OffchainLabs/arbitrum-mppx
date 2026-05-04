@@ -1,0 +1,30 @@
+{
+  "name": "arbitrum-mppx",
+  "version": "1.0.0",
+  "description": "",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "server": "tsx test/server",
+    "client": "tsx test/client",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "mppx": "^0.6.7",
+    "typescript": "^6.0.3",
+    "viem": "^2.48.4"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "eslint": "^10.2.1",
+    "globals": "^17.5.0",
+    "jiti": "^2.6.1",
+    "tsx": "^4.21.0",
+    "typescript-eslint": "^8.59.1"
+  }
+}
