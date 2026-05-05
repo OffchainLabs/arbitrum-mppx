@@ -1,3 +1,6 @@
+import { Address, Chain } from "viem";
+import { arbitrum, arbitrumSepolia } from "viem/chains";
+
 export const chainId = {
   arbitrumOne: 42161,
   arbitrumSepolia: 421614,
@@ -8,8 +11,8 @@ export type ChainId = (typeof chainId)[keyof typeof chainId];
 export const USDCdecimals = 6;
 
 export const TOKEN_CONTRACTS = {
-  USDC_ARBITRUM_ONE: "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
-  USDC_ARBITRUM_SEPOLIA: "0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d"
+  USDC_ARBITRUM_ONE: "0xaf88d065e77c8cC2239327C5EDb3A432268e5831".toLowerCase() as Address,
+  USDC_ARBITRUM_SEPOLIA: "0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d".toLowerCase() as Address
 } as const 
 
 export const rpcUrl: Record<number, string> = {
@@ -72,14 +75,14 @@ export const erc3009Abi = [
 
 export const erc3009Tokens: Record<string, { name: string; version: string; chainId: ChainId }> =
   {
-    [TOKEN_CONTRACTS.USDC_ARBITRUM_ONE.toLowerCase()]: {
-      name: "USDC",
+    [TOKEN_CONTRACTS.USDC_ARBITRUM_ONE]: {
+      name: "USD Coin",
       version: "2",
-      chainId: chainId.arbitrumOne
+      chainId: chainId.arbitrumOne,
     },
-    [TOKEN_CONTRACTS.USDC_ARBITRUM_SEPOLIA.toLowerCase()]: {
-      name: "USDC",
+    [TOKEN_CONTRACTS.USDC_ARBITRUM_SEPOLIA]: {
+      name: "USD Coin",
       version: "2",
-      chainId: chainId.arbitrumSepolia
+      chainId: chainId.arbitrumSepolia,
     },
   };

@@ -5,6 +5,7 @@ import { parseAccount } from "viem/accounts"
 import { signTypedData } from "viem/actions"
 import * as defaults from "../default.js"
 import { encodePacked } from "viem"
+import { token } from "viem/tempo/actions"
 
 
 export function charge(parameters: charge.Parameters) {
@@ -24,7 +25,7 @@ export function charge(parameters: charge.Parameters) {
 
     // Figure out exactly what context is useful for, otherwise idk?
     async createCredential({ challenge, context }) {
-      const { request }= challenge
+      const { request } = challenge
 
       const amount = BigInt(request.amount);
       const currency = request.currency as Address;
@@ -54,40 +55,42 @@ export function charge(parameters: charge.Parameters) {
         : BigInt(Math.floor(Date.now() / 1000) + 600); // 10 minutes default 
 
       const tokenInfo = defaults.erc3009Tokens[currency.toLowerCase()]
-      console.log(tokenInfo);
+
       if (!tokenInfo) throw new Error(`EIP3009 Token contract: ${currency} not registered`)
-      if (tokenInfo.chainId != chainId) { throw new Error(`Token: ${tokenInfo.name} 
-        on network ${tokenInfo.chainId}, current network ${chainId}`)}
+      if (tokenInfo.chainId != chainId) {
+        throw new Error(`Token: ${tokenInfo.name} 
+        on incorrect network: ${tokenInfo.chainId} current network: ${chainId}`)
+      };
 
 
       const signature = await signTypedData(client, {
-          account,
-          domain: {
-            name: tokenInfo.name,
-            version: tokenInfo.version,
-            chainId: tokenInfo.chainId,
-            verifyingContract: currency,
-          },
-          types: {
-            TransferWithAuthorization: [
-              { name: "from", type: "address" },
-              { name: "to", type: "address" },
-              { name: "value", type: "uint256" },
-              { name: "validAfter", type: "uint256" },
-              { name: "validBefore", type: "uint256" },
-              { name: "nonce", type: "bytes32" },
-            ],
-          },
-          primaryType: "TransferWithAuthorization",
-          message: {
-            from: account.address,
-            to: recipient,
-            value: amount,
-            validAfter,
-            validBefore,
-            nonce,
-          },
-        });
+        account,
+        domain: {
+          name: tokenInfo.name,
+          version: tokenInfo.version,
+          chainId: tokenInfo.chainId,
+          verifyingContract: currency,
+        },
+        types: {
+          TransferWithAuthorization: [
+            { name: "from", type: "address" },
+            { name: "to", type: "address" },
+            { name: "value", type: "uint256" },
+            { name: "validAfter", type: "uint256" },
+            { name: "validBefore", type: "uint256" },
+            { name: "nonce", type: "bytes32" },
+          ],
+        },
+        primaryType: "TransferWithAuthorization",
+        message: {
+          from: account.address,
+          to: recipient,
+          value: amount,
+          validAfter,
+          validBefore,
+          nonce,
+        },
+      });
 
       return Credential.serialize({
         challenge,
