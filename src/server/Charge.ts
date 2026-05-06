@@ -1,21 +1,16 @@
-import { Method, Receipt } from "mppx"
+import { Method } from "mppx"
 import * as Methods from "../Methods.js"
 import * as defaults from "../default.js"
 import {
 	encodeFunctionData,
-	Address,
-	Hex,
 	verifyTypedData,
 	keccak256,
 	encodePacked,
 	parseSignature,
-	Client,
 	createClient,
-	Chain,
 	http,
-	Account,
-	TransactionReceipt
 } from "viem";
+import type { Address, Hex, Client, Chain, Account, TransactionReceipt} from "viem"
 import { sendTransaction, waitForTransactionReceipt } from "viem/actions"
 
 export function charge(parameters: charge.Parameters) {
