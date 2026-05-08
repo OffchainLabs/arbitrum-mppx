@@ -15,13 +15,22 @@ export const arbitrumCharge = Method.from({
         permit2Address: z.string(),
         credentialTypes: z.optional(z.array(z.string())),
         decimals: z.optional(z.number()),
-        splits: z.optional(z.array(z.string()))
+        splits: z.optional(z.array(z.object({
+          recipient: z.string(),
+          amount: z.string(),
+          memo: z.optional(z.string())
+        })))
       })
-      
+
     }),
     credential: {
       payload: z.object({
-        type: z.literal("authorization"),
+        type: z.union([
+          z.string("authorization"),
+          z.string("permit2"),
+          z.string("transaction"),
+          z.string("hash")
+        ]),
         from: z.string(),
         to: z.string(),
         value: z.string(),
