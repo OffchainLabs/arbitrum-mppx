@@ -69,17 +69,22 @@ export function charge(parameters: charge.Parameters) {
       if (credentialTypes?.includes("permit2")) {
         // TODO: implement permit2
         const nonce = createChallengeHash(challenge.id, challenge.realm);
-        
+        let sum: number = 0, permitted: Array<{token: Address, amount: string}> | undefined = undefined;
         if (splits !== undefined) {
-          let sum = 0;
-          for (let i = 0; i < splits.length; i++) {
-            sum += Number(splits[i]?.amount)
+          sum = 0;
+          permitted = [];
+          for (const entry of splits) {
+            sum += Number(entry.amount)
+            permitted.push({token: currency, amount: entry.amount})
           }
           if (sum >= amount) {
             throw new Error(`sum of splits must be strictly lower than total amount. sum: ${sum} amount: ${amount}`);
           }
+          if (splits.length === 0) {
+            throw new Error(`Splits is present but contains 0 entries`);
+          }
         }
-
+        
 
 
 
