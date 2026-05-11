@@ -76,13 +76,16 @@ export function charge(parameters: ChargeParameters): Method.Client<typeof Metho
       if (credentialTypes?.includes("permit2")) {
         // TODO: implement permit2
         const nonce = createChallengeHash(challenge.id, challenge.realm);
-        let sum: number = 0, permitted: Array<{token: Address, amount: string}> | undefined = undefined;
+
+        let sum: number = 0, permitted: Array<{token: Address, amount: string}> = [];
+        let transferDetails: Array<{to: Address, requestedAmount: string}> = [];
+
         if (splits !== undefined) {
-          sum = 0;
-          permitted = [];
+          // permitted and transferDetails are needed later so they are added here
           for (const entry of splits) {
             sum += Number(entry.amount)
             permitted.push({token: currency, amount: entry.amount})
+            transferDetails.push({to: entry.recipient as Address, requestedAmount: entry.amount});
           }
           if (sum >= amount) {
             throw new Error(`sum of splits must be strictly lower than total amount. sum: ${sum} amount: ${amount}`);
@@ -91,6 +94,13 @@ export function charge(parameters: ChargeParameters): Method.Client<typeof Metho
             throw new Error(`Splits is present but contains 0 entries`);
           }
         }
+        // Primary recipient needs to be at the beginning of the array. Cannot add the primary recipient
+        // before the loop due to needing to find the sum first so it can subtract from the total sum
+        // Even if there is only one recipient and the splits field wasnt provided, permitted and transferDetails
+        // Needs to contain the primary recipient so that is done here
+        const primaryRecipientAmount = (amount - BigInt(sum)).toString();
+        permitted.unshift({token: currency, amount: primaryRecipientAmount})
+        transferDetails.unshift({to: recipient, requestedAmount: primaryRecipientAmount})
         
 
 
