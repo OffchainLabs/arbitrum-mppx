@@ -19,7 +19,7 @@ export const rpcUrl: Record<number, string> = {
   [chainId.arbitrumSepolia]: "https://sepolia-rollup.arbitrum.io/rpc",
 };
 
-export const CHALLENGE_HASH_ABI = ['string', 'string']
+export const CHALLENGE_HASH_ABI = ['string', 'string'] as const
 
 export const erc3009Abi = [
   {
@@ -85,3 +85,6 @@ export const erc3009Tokens: Record<string, { name: string; version: string; chai
       chainId: chainId.arbitrumSepolia,
     },
   };
+  
+  export const PERMIT2_ADDRESS =
+  "0x000000000022D473030F116dDEE9F6B43aC78BA3".toLowerCase() as Address;
