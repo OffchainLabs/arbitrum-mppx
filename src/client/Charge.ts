@@ -1,8 +1,8 @@
 import { Method, Credential } from "mppx"
 import * as Methods from "../Methods.js"
-import { createClient, keccak256, http, erc20Abi } from "viem"
+import { createClient, keccak256, http } from "viem"
 import type { Client, Account, Address, Chain } from "viem"
-import { signTypedData, readContract } from "viem/actions"
+import { signTypedData } from "viem/actions"
 import * as defaults from "../default.js"
 import { encodePacked } from "viem"
 import { resolveClients } from "../utils.js"
@@ -66,19 +66,22 @@ export function charge(parameters: charge.Parameters) {
        * if credentialTypes is undefined, it assumes transaction is being used. Maybe we should deviate from
        * the spec and require credentialTypes always since I see no reason in making it an assumption
        */
-      if (credentialTypes?.includes("permit2")) {
-        // TODO: implement permit2
-        const nonce = createChallengeHash(challenge.id, challenge.realm);
+      if (credentialTypes?.includes("permit2") || credentialTypes === undefined) {
+        // The spec mentions EIP-712 witness stuff but I think the AI that wrote it is hallucinating a bit
+        // Its actually Uniswaps permit 2 that requires a signed witness value, EIP-712 is just the ordering
+        const challengeHashWitness = createChallengeHash(challenge.id, challenge.realm);
+        const nonce = BigInt(challengeHashWitness);
 
-        let sum: number = 0, permitted: Array<{token: Address, amount: string}> = [];
-        let transferDetails: Array<{to: Address, requestedAmount: string}> = [];
+        let sum = BigInt(0);
+        let permitted: Array<{ token: Address, amount: string }> = [];
+        let transferDetails: Array<{ to: Address, requestedAmount: string }> = [];
 
         if (splits !== undefined) {
           // permitted and transferDetails are needed later so they are added here
           for (const entry of splits) {
-            sum += Number(entry.amount)
-            permitted.push({token: currency, amount: entry.amount})
-            transferDetails.push({to: entry.recipient as Address, requestedAmount: entry.amount});
+            sum += BigInt(entry.amount)
+            permitted.push({ token: currency, amount: entry.amount })
+            transferDetails.push({ to: entry.recipient as Address, requestedAmount: entry.amount });
           }
           if (sum >= amount) {
             throw new Error(`sum of splits must be strictly lower than total amount. sum: ${sum} amount: ${amount}`);
@@ -92,12 +95,97 @@ export function charge(parameters: charge.Parameters) {
         // Even if there is only one recipient and the splits field wasnt provided, permitted and transferDetails
         // Needs to contain the primary recipient so that is done here
         const primaryRecipientAmount = (amount - BigInt(sum)).toString();
-        permitted.unshift({token: currency, amount: primaryRecipientAmount})
-        transferDetails.unshift({to: recipient, requestedAmount: primaryRecipientAmount})
+        permitted.unshift({ token: currency, amount: primaryRecipientAmount })
+        transferDetails.unshift({ to: recipient, requestedAmount: primaryRecipientAmount })
+
+        const deadline = challenge.expires
+          ? BigInt(Math.floor(new Date(challenge.expires).getTime() / 1000))
+          : BigInt(Math.floor(Date.now() / 1000) + 600);
+
+        // Re-useable signTypeData params
+        const domain = {
+          name: "Permit2",
+          chainId,
+          verifyingContract: permit2Address as Address,
+        }
+        const tokenPermissionsType = [
+          { name: "token", type: "address" },
+          { name: "amount", type: "uint256" },
+        ] as const;
         
+        const challengeWitnessType = [
+          { name: "challengeHash", type: "bytes32" },
+        ] as const;
 
+        let signature: Hex;
 
+        if (splits === undefined) {
+          signature = await signTypedData(client, {
+            account,
+            domain,
+            types: {
+              PermitWitnessTransferFrom: [
+                { name: "permitted", type: "TokenPermissions" },
+                { name: "spender", type: "address" },
+                { name: "nonce", type: "uint256" },
+                { name: "deadline", type: "uint256" },
+                { name: "witness", type: "ChallengeWitness" },
+              ],
+              TokenPermissions: tokenPermissionsType,
+              ChallengeWitness: challengeWitnessType,
+            },
+            primaryType: "PermitWitnessTransferFrom",
+            message: {
+              permitted: { token: permitted[0]!.token, amount: BigInt(permitted[0]!.amount) },
+              spender: recipient,
+              nonce,
+              deadline,
+              witness: { challengeHash: challengeHashWitness },
+            },
+          });
+        }
+        else {
+          signature = await signTypedData(client, {
+            account,
+            domain,
+            types: {
+              PermitBatchWitnessTransferFrom: [
+                { name: "permitted", type: "TokenPermissions[]" },
+                { name: "spender", type: "address" },
+                { name: "nonce", type: "uint256" },
+                { name: "deadline", type: "uint256" },
+                { name: "witness", type: "ChallengeWitness" },
+              ],
+              TokenPermissions: tokenPermissionsType,
+              ChallengeWitness: challengeWitnessType,
+            },
+            primaryType: "PermitBatchWitnessTransferFrom",
+            message: {
+              permitted: permitted.map(p => ({ token: p.token, amount: BigInt(p.amount) })),
+              spender: recipient,
+              nonce,
+              deadline,
+              witness: { challengeHash: challengeHashWitness },
+            },
+          });
+        }
 
+        return Credential.serialize({
+          challenge,
+          payload: {
+            type: "Permit2",
+            permit: {
+              permitted: permitted,
+              nonce: nonce.toString(),
+              deadline: deadline.toString(),
+            },
+            transferDetails: transferDetails,
+            witness: {
+              challengeHash: challengeHashWitness
+            },
+            signature: signature,
+          }
+        })
       }
 
       else if (credentialTypes?.includes("authorization")) {
@@ -191,6 +279,7 @@ export function charge(parameters: charge.Parameters) {
     }
   })
 }
+
 
 
 export declare namespace charge {

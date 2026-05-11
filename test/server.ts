@@ -25,8 +25,6 @@ const mppx = Mppx.create({
     recipient: account.address,
     currency: defaults.TOKEN_CONTRACTS.USDC_ARBITRUM_SEPOLIA,
     methodDetails: {
-      // When permit2 is implemented will make it the real address
-      permit2Address: "0x",
       chainId: 421614,
       decimals: 6,
       credentialTypes: ["authorization"]
