@@ -8,6 +8,13 @@ import { encodePacked } from "viem"
 import { resolveClients } from "../utils.js"
 
 
+function createChallengeHash(id: string, realm: string): `0x${string}` {
+  return keccak256(encodePacked(
+    defaults.CHALLENGE_HASH_ABI,
+    [id, realm]
+  ))
+}
+
 export function charge(parameters: charge.Parameters) {
   
   const { rpcUrls } = parameters;
@@ -61,18 +68,30 @@ export function charge(parameters: charge.Parameters) {
        */
       if (credentialTypes?.includes("permit2")) {
         // TODO: implement permit2
+        const nonce = createChallengeHash(challenge.id, challenge.realm);
+        
+        if (splits !== undefined) {
+          let sum = 0;
+          for (let i = 0; i < splits.length; i++) {
+            sum += Number(splits[i]?.amount)
+          }
+          if (sum >= amount) {
+            throw new Error(`sum of splits must be strictly lower than total amount. sum: ${sum} amount: ${amount}`);
+          }
+        }
+
+
+
 
       }
+
       else if (credentialTypes?.includes("authorization")) {
         if (splits !== undefined) {
           throw new Error("Splits are not allowed for credentialType: authorization")
         }
 
         // Nonce is given hashed challenge info as a form of challenge binding
-        const nonce = keccak256(encodePacked(
-          defaults.CHALLENGE_HASH_ABI,
-          [challenge.id, challenge.realm]
-        ))
+        const nonce = createChallengeHash(challenge.id, challenge.realm);
 
         /**
          * We may want to deviate from the spec and always require a challenge expiry 
