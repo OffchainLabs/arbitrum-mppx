@@ -8,7 +8,8 @@ import {
 	encodePacked,
 	parseSignature,
 	erc20Abi,
-	parseEventLogs
+	parseEventLogs,
+	isAddress
 } from "viem";
 import type { Address, Hex, Account, TransactionReceipt } from "viem"
 import { sendTransaction, waitForTransactionReceipt, readContract, call } from "viem/actions"
@@ -82,10 +83,120 @@ export function charge(parameters: charge.Parameters) {
 			// Different verifications for different types
 			switch (payload.type) {
 				case "permit2": {
-					// TODO: implement permit2 verification
-					break;
+					payload as {
+						type: string,
+						permit: {
+							permitted: { token: string, amount: string }[],
+							nonce: string,
+							deadline: string,
+						},
+						transferDetails: { to: string, requestedAmount: string }[],
+						witness: { challengeHash: string },
+						signature: string,
+					}
+
+					const { transferDetails } = payload;
+					const { permitted } = payload.permit;
+
+					if (source === undefined) { throw new Error("Source cannot be undefined for type permit2") }
+
+					const parts = source.split(':');
+					if (parts.length !== 5 || parts[0] !== 'did' || parts[1] !== 'pkh') {
+						throw new Error(`Invalid did:pkh: ${source}`);
+					}
+					const [, , namespace, chainIdStr, address] = parts
+					if (!isAddress(address as Address)) throw new Error(`Invalid address: ${address}`);
+
+					if (BigInt(payload.permit.deadline) < Math.floor(Date.now() / 1000)) throw new Error(`Client payload 
+						timeframe is no longer valid. Current time: ${Date.now() / 1000} 
+							validBefore timestamp: ${payload.permit.deadline}`);
+
+					const domain = {
+						name: "Permit2",
+						chainId: Number(chainIdStr),
+						verifyingContract: defaults.PERMIT2_ADDRESS,
+					}
+
+					let signatureValid: boolean = false;
+
+					if (splits === undefined) {
+						signatureValid = await verifyTypedData({
+							address: address as Address,
+							domain,
+							types: {
+								PermitWitnessTransferFrom: [
+									{ name: "permitted", type: "TokenPermissions" },
+									{ name: "spender", type: "address" },
+									{ name: "nonce", type: "uint256" },
+									{ name: "deadline", type: "uint256" },
+									{ name: "witness", type: "ChallengeWitness" },
+								],
+								TokenPermissions: defaults.tokenPermissionsType,
+								ChallengeWitness: defaults.challengeWitnessType,
+							},
+							primaryType: "PermitWitnessTransferFrom",
+							message: {
+								permitted: { token: permitted[0]!.token as Address, amount: BigInt(permitted[0]!.amount) },
+								spender: recipient as Address,
+								nonce: BigInt(payload.permit.nonce),
+								deadline: BigInt(payload.permit.deadline),
+								witness: { challengeHash: payload.witness.challengeHash as Hex },
+							},
+							signature: payload.signature as Hex
+						});
+					}
+					else {
+						signatureValid = await verifyTypedData({
+							address: address as Address,
+							domain,
+							types: {
+								PermitBatchWitnessTransferFrom: [
+									{ name: "permitted", type: "TokenPermissions[]" },
+									{ name: "spender", type: "address" },
+									{ name: "nonce", type: "uint256" },
+									{ name: "deadline", type: "uint256" },
+									{ name: "witness", type: "ChallengeWitness" },
+								],
+								TokenPermissions: defaults.tokenPermissionsType,
+								ChallengeWitness: defaults.challengeWitnessType,
+							},
+							primaryType: "PermitBatchWitnessTransferFrom",
+							message: {
+								permitted: permitted.map(p => ({ token: p.token as Address, amount: BigInt(p.amount) })),
+								spender: recipient as Address,
+								nonce: BigInt(payload.permit.nonce),
+								deadline: BigInt(payload.permit.deadline),
+								witness: { challengeHash: payload.witness.challengeHash as Hex },
+							},
+							signature: payload.signature as Hex
+						});
+					}
+					console.log(`Signature validity: ${signatureValid}`);
+
+					// Placeholder until implementing transaction submission
+					return {
+						method: "arbitrum" as const,
+						status: "success" as const,
+						timestamp: new Date().toISOString(),
+						reference: "Placeholder",
+					};
 				}
 				case "authorization": {
+					payload as {
+						from: string;
+						to: string;
+						value: string;
+						validAfter: string;
+						validBefore: string;
+						nonce: string;
+						signature: string;
+					}
+
+					if (payload.to != request.recipient) throw new Error(`Client payload sending to incorrect address: 
+							${payload.to} Should be ${request.recipient}`);
+
+					if (payload.value != request.amount) throw new Error(`Client payload value is incorrect. 
+							payload value: ${payload.value} Should be ${request.amount}`);
 
 					const hashedNonce = keccak256(encodePacked(
 						defaults.CHALLENGE_HASH_ABI,

@@ -88,3 +88,12 @@ export const erc3009Tokens: Record<string, { name: string; version: string; chai
   
   export const PERMIT2_ADDRESS =
   "0x000000000022D473030F116dDEE9F6B43aC78BA3".toLowerCase() as Address;
+
+  export const tokenPermissionsType = [
+    { name: "token", type: "address" },
+    { name: "amount", type: "uint256" },
+  ] as const;
+
+  export const challengeWitnessType = [
+    { name: "challengeHash", type: "bytes32" },
+  ] as const;
