@@ -3,9 +3,11 @@ import * as Methods from "../Methods.js"
 import * as defaults from "../default.js"
 import {
 	encodeFunctionData,
+	encodeAbiParameters,
 	verifyTypedData,
 	keccak256,
 	encodePacked,
+	toBytes,
 	parseSignature,
 	erc20Abi,
 	parseEventLogs,
@@ -124,8 +126,8 @@ export function charge(parameters: ChargeParameters): Method.Server<typeof Metho
 					const [, , namespace, chainIdStr, address] = parts
 					if (!isAddress(address as Address)) throw new Error(`Invalid address: ${address}`);
 
-					if (BigInt(payload.permit.deadline) < Math.floor(Date.now() / 1000)) throw new Error(`Client payload 
-						timeframe is no longer valid. Current time: ${Date.now() / 1000} 
+					if (BigInt(payload.permit.deadline) < BigInt(Math.floor(Date.now() / 1000))) throw new Error(`Client payload
+						timeframe is no longer valid. Current time: ${Date.now() / 1000}
 							validBefore timestamp: ${payload.permit.deadline}`);
 
 					const domain = {
@@ -135,7 +137,7 @@ export function charge(parameters: ChargeParameters): Method.Server<typeof Metho
 					}
 
 					let signatureValid: boolean = false;
-
+					// Theres a single and batch version for PermitWitnessTransferFrom
 					if (splits === undefined) {
 						signatureValid = await verifyTypedData({
 							address: address as Address,
@@ -146,10 +148,10 @@ export function charge(parameters: ChargeParameters): Method.Server<typeof Metho
 									{ name: "spender", type: "address" },
 									{ name: "nonce", type: "uint256" },
 									{ name: "deadline", type: "uint256" },
-									{ name: "witness", type: "ChallengeWitness" },
+									{ name: "witness", type: "PaymentWitness" },
 								],
 								TokenPermissions: defaults.tokenPermissionsType,
-								ChallengeWitness: defaults.challengeWitnessType,
+								PaymentWitness: defaults.PaymentWitness,
 							},
 							primaryType: "PermitWitnessTransferFrom",
 							message: {
@@ -172,10 +174,10 @@ export function charge(parameters: ChargeParameters): Method.Server<typeof Metho
 									{ name: "spender", type: "address" },
 									{ name: "nonce", type: "uint256" },
 									{ name: "deadline", type: "uint256" },
-									{ name: "witness", type: "ChallengeWitness" },
+									{ name: "witness", type: "PaymentWitness" },
 								],
 								TokenPermissions: defaults.tokenPermissionsType,
-								ChallengeWitness: defaults.challengeWitnessType,
+								PaymentWitness: defaults.PaymentWitness,
 							},
 							primaryType: "PermitBatchWitnessTransferFrom",
 							message: {
@@ -188,15 +190,84 @@ export function charge(parameters: ChargeParameters): Method.Server<typeof Metho
 							signature: payload.signature as Hex
 						});
 					}
-					console.log(`Signature validity: ${signatureValid}`);
 
-					// Placeholder until implementing transaction submission
-					return {
-						method: "arbitrum" as const,
-						status: "success" as const,
-						timestamp: new Date().toISOString(),
-						reference: "Placeholder",
-					};
+					// I dom't really understand this witness hash stuff but it works on chain so it must be correct.
+					// it would definitely revert if it wasn't.
+					const witnessTypeHash = keccak256(
+						toBytes("PaymentWitness(bytes32 challengeHash)")
+					);
+					const witness = keccak256(
+						encodeAbiParameters(
+							[{ type: "bytes32" }, { type: "bytes32" }],
+							[witnessTypeHash, payload.witness.challengeHash as Hex]
+						)
+					);
+
+					// just like last time different encodings depending on if splits is present
+					let transactionInfo;
+					if (splits === undefined) {
+						transactionInfo = {
+							account: serverAccount,
+							chain: client.chain,
+							to: defaults.PERMIT2_ADDRESS as Hex,
+							data: encodeFunctionData({
+								abi: defaults.PERMIT2_SINGLE_ABI,
+								functionName: "permitWitnessTransferFrom",
+								args: [
+									{
+										permitted: {
+											token: permitted[0]!.token as Address,
+											amount: BigInt(permitted[0]!.amount),
+										},
+										nonce: BigInt(payload.permit.nonce),
+										deadline: BigInt(payload.permit.deadline),
+									},
+									{
+										to: transferDetails[0]!.to as Address,
+										requestedAmount: BigInt(transferDetails[0]!.requestedAmount),
+									},
+									address as Address,
+									witness,
+									defaults.PERMIT2_WITNESS_TYPE_STRING,
+									payload.signature as Hex,
+								],
+							}),
+						};
+					}
+					else {
+						transactionInfo = {
+							account: serverAccount,
+							chain: client.chain,
+							to: defaults.PERMIT2_ADDRESS as Hex,
+							data: encodeFunctionData({
+								abi: defaults.PERMIT2_BATCH_ABI,
+								functionName: "permitWitnessTransferFrom",
+								args: [
+									{
+										permitted: permitted.map(p => ({
+											token: p.token as Address,
+											amount: BigInt(p.amount),
+										})),
+										nonce: BigInt(payload.permit.nonce),
+										deadline: BigInt(payload.permit.deadline),
+									},
+									transferDetails.map(t => ({
+										to: t.to as Address,
+										requestedAmount: BigInt(t.requestedAmount),
+									})),
+									address as Address,
+									witness,
+									defaults.PERMIT2_WITNESS_TYPE_STRING,
+									payload.signature as Hex,
+								],
+							}),
+						};
+					}
+
+					const transactionHash = await sendTransaction(client, transactionInfo);
+					const receipt = await waitForTransactionReceipt(client, { hash: transactionHash });
+
+					return toReceipt(receipt);
 				}
 				case "authorization": {
 					payload as {
