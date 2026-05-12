@@ -113,16 +113,9 @@ export function charge(parameters: ChargeParameters): Method.Client<typeof Metho
         const domain = {
           name: "Permit2",
           chainId,
-          verifyingContract: permit2Address as Address,
+          verifyingContract: defaults.PERMIT2_ADDRESS,
         }
-        const tokenPermissionsType = [
-          { name: "token", type: "address" },
-          { name: "amount", type: "uint256" },
-        ] as const;
-
-        const challengeWitnessType = [
-          { name: "challengeHash", type: "bytes32" },
-        ] as const;
+        
 
         let signature: Hex;
         // Depending on if splits exists or not, we are required to use different permit2 functions 
@@ -139,8 +132,8 @@ export function charge(parameters: ChargeParameters): Method.Client<typeof Metho
                 { name: "deadline", type: "uint256" },
                 { name: "witness", type: "ChallengeWitness" },
               ],
-              TokenPermissions: tokenPermissionsType,
-              ChallengeWitness: challengeWitnessType,
+              TokenPermissions: defaults.tokenPermissionsType,
+              ChallengeWitness: defaults.challengeWitnessType,
             },
             primaryType: "PermitWitnessTransferFrom",
             message: {
@@ -164,8 +157,8 @@ export function charge(parameters: ChargeParameters): Method.Client<typeof Metho
                 { name: "deadline", type: "uint256" },
                 { name: "witness", type: "ChallengeWitness" },
               ],
-              TokenPermissions: tokenPermissionsType,
-              ChallengeWitness: challengeWitnessType,
+              TokenPermissions: defaults.tokenPermissionsType,
+              ChallengeWitness: defaults.challengeWitnessType,
             },
             primaryType: "PermitBatchWitnessTransferFrom",
             message: {
@@ -181,7 +174,7 @@ export function charge(parameters: ChargeParameters): Method.Client<typeof Metho
         return Credential.serialize({
           challenge,
           payload: {
-            type: "Permit2",
+            type: "permit2",
             permit: {
               permitted: permitted,
               nonce: nonce.toString(),
@@ -192,7 +185,11 @@ export function charge(parameters: ChargeParameters): Method.Client<typeof Metho
               challengeHash: challengeHashWitness
             },
             signature: signature,
-          }
+          },
+          // Source is not required, yet without it we can't get the sender address 
+          // so this should be required by the server to check signature validity
+          // (or we diverge from the spec and add a from property to payload)
+          source: `did:pkh:eip155:${chainId}:${account.address}`
         })
       }
 

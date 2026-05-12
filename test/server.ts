@@ -4,7 +4,6 @@ import { charge } from '../src/server/index.js';
 import { config } from 'dotenv';
 import * as defaults from "../src/default.js"
 import { privateKeyToAccount } from 'viem/accounts';
-import type { Hex } from 'viem';
 const PORT = 3000;
 
 config()
@@ -27,7 +26,6 @@ const mppx = Mppx.create({
     methodDetails: {
       chainId: 421614,
       decimals: 6,
-      credentialTypes: ["authorization"]
     },
     account: account
   })],
@@ -41,10 +39,47 @@ app.get(
   mppx.charge({
     amount: '1000',
     description: "My favorite food",
+    methodDetails: {
+      chainId: 421614,
+      permit2Address: defaults.PERMIT2_ADDRESS,
+      credentialTypes: ["authorization"]
+    }
   }),
   (req, res) => res.json({ data: 'I like burgers' })
 )
 
+app.get(
+  '/permit2SignatureTest',
+  mppx.charge({
+    amount: '1000',
+    description: "Testing permit2",
+    methodDetails: {
+      chainId: 421614,
+      permit2Address: defaults.PERMIT2_ADDRESS,
+      credentialTypes: ["permit2"]
+    }
+  }),
+  (req, res) => res.json({ data: 'The only thing that matters is the signature validity right now' })
+)
+
+app.get(
+  '/permit2SignatureTestSplit',
+  mppx.charge({
+    amount: '1050',
+    description: "Testing permit2",
+    methodDetails: {
+      chainId: 421614,
+      permit2Address: defaults.PERMIT2_ADDRESS,
+      credentialTypes: ["permit2"],
+      splits: [{
+        recipient: "0x6Cdd1BBD6DeD546a52E9e46A1Cae4839d008eC38",
+        amount: "50",
+        memo: "Platform fee"
+      }]
+    }
+  }),
+  (req, res) => res.json({ data: 'The only thing that matters is the signature validity right now' })
+)
 
 app.listen(PORT, () => {
   console.log(`Server listening at http://localhost:${PORT}`)
