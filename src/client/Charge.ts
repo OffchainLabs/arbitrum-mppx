@@ -119,13 +119,14 @@ export function charge(parameters: ChargeParameters): Method.Client<typeof Metho
           { name: "token", type: "address" },
           { name: "amount", type: "uint256" },
         ] as const;
-        
+
         const challengeWitnessType = [
           { name: "challengeHash", type: "bytes32" },
         ] as const;
 
         let signature: Hex;
-
+        // Depending on if splits exists or not, we are required to use different permit2 functions 
+        // for batch transfers which is why this is here
         if (splits === undefined) {
           signature = await signTypedData(client, {
             account,
