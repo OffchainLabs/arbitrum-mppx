@@ -82,15 +82,6 @@ export function charge(parameters: charge.Parameters) {
 
 			const client = await resolveClient(chainId);
 
-			if (payload.to != request.recipient) throw new Error(`Client payload sending to incorrect address: 
-				${payload.to} Should be ${request.recipient}`);
-
-			if (payload.value != request.amount) throw new Error(`Client payload value is incorrect. 
-					payload value: ${payload.value} Should be ${request.amount}`);
-
-			if (BigInt(payload.validBefore) < Math.floor(Date.now() / 1000)) throw new Error(`Client payload timeframe is no longer valid.
-				 Current time: ${Date.now() / 1000} validBefore timestamp: ${payload.validBefore}`);
-
 			if (splits && payload.type !== "permit2") {
 				throw new Error(`Splits is only compatible with type: permit2, Payload type given: ${payload.type}`)
 			}
@@ -99,6 +90,7 @@ export function charge(parameters: charge.Parameters) {
 			switch (payload.type) {
 				case "permit2": {
 					// TODO: implement permit2 verification
+					break;
 				}
 				case "authorization": {
 
@@ -106,6 +98,15 @@ export function charge(parameters: charge.Parameters) {
 						defaults.CHALLENGE_HASH_ABI,
 						[challenge.id, challenge.realm]
 					))
+
+					if (payload.to != request.recipient) throw new Error(`Client payload sending to incorrect address: 
+				${payload.to} Should be ${request.recipient}`);
+
+					if (payload.value != request.amount) throw new Error(`Client payload value is incorrect. 
+					payload value: ${payload.value} Should be ${request.amount}`);
+
+					if (BigInt(payload.validBefore) < Math.floor(Date.now() / 1000)) throw new Error(`Client payload timeframe is no longer valid.
+				 Current time: ${Date.now() / 1000} validBefore timestamp: ${payload.validBefore}`);
 
 					if (hashedNonce != payload.nonce) throw new Error(`Client nonce is not the challengeHash`)
 
@@ -124,7 +125,7 @@ export function charge(parameters: charge.Parameters) {
 						throw new Error(`Client does not have enough funds for transaction. Client funds: ${balance} 
 							Required funds: ${payload.value}`)
 					}
-					
+
 					const signatureValid = await verifyTypedData({
 						address: payload.from as Address,
 						domain: {
@@ -161,7 +162,7 @@ export function charge(parameters: charge.Parameters) {
 
 					if (parsedSig.v == undefined) {
 						throw new Error(`Signature given in shorthand format via EIP 2098 is invalid`);
-					} 
+					}
 
 					const transactionInfo = {
 						account: serverAccount,
@@ -227,6 +228,8 @@ export function charge(parameters: charge.Parameters) {
 					throw new Error(`Arbitrum MPP does not support given credential type: ${payload.type}`)
 				}
 			}
+			// This is only here to avoid error from verify() func
+			throw new Error(`Arbitrum MPP does not support given credential type: ${payload.type}`)
 		}
 	}
 	)
