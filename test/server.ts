@@ -36,7 +36,7 @@ const mppx = Mppx.create({
 // Currently does not support decimals for human readable currency. 
 // may add it later but for now lets try this
 app.get(
-  '/favorite',
+  '/authorization',
   mppx.charge({
     amount: '1000',
     description: "My favorite food",
@@ -46,7 +46,7 @@ app.get(
       credentialTypes: ["authorization"]
     }
   }),
-  (req, res) => res.json({ data: 'I like burgers' })
+  (req, res) => res.json({ data: 'authorization worked!' })
 )
 
 app.get(
@@ -60,7 +60,7 @@ app.get(
       credentialTypes: ["permit2"]
     }
   }),
-  (req, res) => res.json({ data: 'The only thing that matters is the signature validity right now' })
+  (req, res) => res.json({ data: 'permit2 no splits worked!' })
 )
 
 app.get(

@@ -19,7 +19,7 @@ const mppx = Mppx.create({
   })]
 })
 
-const response = await mppx.fetch('http://localhost:3000/permit2SignatureTestSplit');
+const response = await mppx.fetch('http://localhost:3000/favorite');
 const data = await response.json();
 console.log(data);
 const paymentReceipt = response.headers.get('payment-receipt')
