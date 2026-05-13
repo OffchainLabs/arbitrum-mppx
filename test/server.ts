@@ -66,7 +66,7 @@ app.get(
 app.get(
   '/permit2SignatureTestSplit',
   mppx.charge({
-    amount: '1050',
+    amount: '1150',
     description: "Testing permit2",
     methodDetails: {
       chainId: 421614,
@@ -75,11 +75,17 @@ app.get(
       splits: [{
         recipient: "0x6Cdd1BBD6DeD546a52E9e46A1Cae4839d008eC38",
         amount: "50",
-        memo: "Platform fee"
+        memo: "This emits second"
+      },
+      {
+        recipient: "0xB022b539C3bB7a1E6Cc73F6e78d3B4c39b73b0d3",
+        amount: "100",
+        memo: "This emits third"
+
       }]
     }
   }),
-  (req, res) => res.json({ data: 'The only thing that matters is the signature validity right now' })
+  (req, res) => res.json({ data: 'Splits worked!' })
 )
 
 app.listen(PORT, () => {

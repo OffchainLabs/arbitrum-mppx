@@ -102,17 +102,7 @@ export function charge(parameters: ChargeParameters): Method.Server<typeof Metho
 			// Different verifications for different types
 			switch (payload.type) {
 				case "permit2": {
-					payload as {
-						type: string,
-						permit: {
-							permitted: { token: string, amount: string }[],
-							nonce: string,
-							deadline: string,
-						},
-						transferDetails: { to: string, requestedAmount: string }[],
-						witness: { challengeHash: string },
-						signature: string,
-					}
+					payload as defaults.Permit2Payload
 
 					const { transferDetails } = payload;
 					const { permitted } = payload.permit;
@@ -191,7 +181,109 @@ export function charge(parameters: ChargeParameters): Method.Server<typeof Metho
 						});
 					}
 
-					// I dom't really understand this witness hash stuff but it works on chain so it must be correct.
+					const challengeHash = keccak256(encodePacked(
+						defaults.CHALLENGE_HASH_ABI,
+						[challenge.id, challenge.realm]
+					))
+
+					if (challengeHash != payload.witness.challengeHash) {
+						throw new Error(`Client challengeHash is not equal to actual challengeHash`);
+					}
+
+					// Check that the signer has sufficient token balance
+					const balance = await readContract(client, {
+						address: request.currency as Address,
+						abi: erc20Abi,
+						functionName: 'balanceOf',
+						args: [address as Address],
+					})
+
+					if (balance < BigInt(request.amount)) {
+						throw new Error(`Client does not have enough tokens. 
+							balance: ${balance} required: ${request.amount}`)
+					}
+
+					// Check that the signer has enough allowance for permit2
+					const allowance = await readContract(client, {
+						address: request.currency as Address,
+						abi: erc20Abi,
+						functionName: 'allowance',
+						args: [
+							address as Address,
+							defaults.PERMIT2_ADDRESS
+						],
+					})
+
+					if (allowance < BigInt(request.amount)) {
+						throw new Error(`Permit2 does not have enough allowance to perform transaction.
+							allowance: ${allowance} required: ${request.amount}`);
+					}
+
+					// Check that permitted and transferDetails have correct information such as same length, 
+					// correct token contract, correct amounts, correct order, if splits are present make sure those
+					// are correct and that the primary recipient is in the front of both arrays
+					if (permitted.length !== transferDetails.length) {
+						throw new Error(`Permitted array and transferDetails array are not equal
+							Permitted length: ${permitted.length} transferDetails length: ${transferDetails.length}`);
+					}
+
+					let requestSum = BigInt(0);
+					if (splits === undefined) {
+						verifyPrimaryRecipient(
+							permitted,
+							transferDetails,
+							request.currency as Address,
+							requestSum,
+							request.amount,
+							request.recipient
+						)
+					}
+					else {
+						if (permitted.length - 1 !== request.methodDetails.splits!.length) {
+							throw new Error(`permitted and transferDetails length - 1 is not equal to splits length.
+								permitted/transferDetails length: ${permitted.length} 
+								splits length: ${splits.length}`)
+						}
+						// Since the primary recipient is pushed to the front of the array and is not included 
+						// in splits. Splits needs to lag behind by 1.
+						for (let i = 1; i < permitted.length; i++) {
+							const p = permitted[i];
+							const t = transferDetails[i];
+							const s = splits[i - 1];
+							if (p === undefined || t === undefined) {
+								throw new Error(`permitted or transferDetails at 
+									index ${i} is undefined. permitted: ${p} transferDetails: ${t}`);
+							}
+							if (s === undefined) {
+								throw new Error(`splits at index ${i - 1} is undefined`);
+							}
+							if (p.amount !== t.requestedAmount) {
+								throw new Error(`permitted and transferDetails have unequal amount values.
+									permitted: ${p.amount} transferDetails: ${t.requestedAmount}`);
+							}
+							if (p.token !== currency) {
+								throw new Error(`Permitted token address is not equal to request token address.
+									permitted: ${p.token} request: ${currency}`);
+							}
+							if (t.to !== s.recipient) {
+								throw new Error(`transferDetails recipient is not equal to splits recipient
+									transferDetails recipient ${t.to} splits recipient: ${s.recipient}`);
+							}
+							requestSum += BigInt(t.requestedAmount)
+						}
+						// final check to make sure the primary recipient is getting paid the correct amount 
+						verifyPrimaryRecipient(
+							permitted,
+							transferDetails,
+							request.currency as Address,
+							requestSum,
+							request.amount,
+							request.recipient
+						)
+					}
+
+
+					// I don't really understand this witness hash stuff but it works on chain so it must be correct.
 					// it would definitely revert if it wasn't.
 					const witnessTypeHash = keccak256(
 						toBytes("PaymentWitness(bytes32 challengeHash)")
@@ -264,8 +356,36 @@ export function charge(parameters: ChargeParameters): Method.Server<typeof Metho
 						};
 					}
 
+					// Simulate via eth_call
+					const ethCallResponse = await call(client, transactionInfo);
+					if (ethCallResponse.data !== undefined) {
+						throw new Error(`simulated transaction failed: ${ethCallResponse}`);
+					}
+
 					const transactionHash = await sendTransaction(client, transactionInfo);
 					const receipt = await waitForTransactionReceipt(client, { hash: transactionHash });
+
+					// Check the logs and make sure they line up with what should have happened
+					const parsedLogs = parseEventLogs({
+						abi: erc20Abi,
+						eventName: "Transfer",
+						logs: receipt.logs
+					});
+
+					if (parsedLogs.length !== transferDetails.length) {
+						throw new Error(`total transfer logs is not equal to transferDetails array
+							transfer log num: ${parsedLogs.length} transferDetails array length: ${transferDetails.length}`)
+					}
+					for (let i = 0; i < parsedLogs.length; i++) {
+						if (parsedLogs[i]?.args.to !== transferDetails[i]?.to) {
+							throw new Error(`emitted logs recipient does not match transferDetails recipient
+								log: ${parsedLogs[i]?.args.to} transferDetails: ${transferDetails[i]?.to}`)
+						}
+						if (parsedLogs[i]?.args.value.toString() !== transferDetails[i]?.requestedAmount) {
+							throw new Error(`emitted logs value does not match transferDetails value
+								log: ${parsedLogs[i]?.args.value} transferDetails: ${transferDetails[i]?.requestedAmount}`);
+						}
+					}
 
 					return toReceipt(receipt);
 				}
@@ -301,6 +421,10 @@ export function charge(parameters: ChargeParameters): Method.Server<typeof Metho
 				 Current time: ${Date.now() / 1000} validBefore timestamp: ${payload.validBefore}`);
 
 					if (hashedNonce != payload.nonce) throw new Error(`Client nonce is not the challengeHash`)
+
+					if (BigInt(payload.validBefore) < Math.floor(Date.now() / 1000)) throw new Error(`Client 
+						payload timeframe is no longer valid. Current time: ${Date.now() / 1000} validBefore 
+						timestamp: ${payload.validBefore}`);
 
 					const tokenInfo = defaults.erc3009Tokens[request.currency];
 					if (!tokenInfo) throw new Error(`Token contract is not verified to have EIP3009`);
@@ -427,6 +551,39 @@ export function charge(parameters: ChargeParameters): Method.Server<typeof Metho
 		}
 	}
 	)
+}
+// This is a question, I made this just to remove redundancy when checking the primary recipient.
+// should we even bother returning a boolean value if all we care about is seeing if it throws 
+// an error or not?
+function verifyPrimaryRecipient(
+	permitted: defaults.Permit2Payload["permit"]["permitted"],
+	transferDetails: defaults.Permit2Payload["transferDetails"],
+	currency: Address,
+	splitsSum: bigint,
+	requestAmount: string,
+	requestRecipient: string
+) {
+	if (permitted[0] === undefined || transferDetails[0] === undefined) {
+		throw new Error(`permitted or transferDetails at index 0 is undefined
+			permitted: ${permitted[0]} transferDetails: ${transferDetails[0]}`)
+	}
+	if (permitted[0].token !== currency) {
+		throw new Error(`permitted token contract is not correct. permitted: ${permitted[0].token}
+			request: ${currency}`);
+	}
+	if (permitted[0].amount !== transferDetails[0].requestedAmount) {
+		throw new Error(`Amounts are not equal. permitted: ${permitted[0]?.amount} 
+			transferDetails: ${transferDetails[0].requestedAmount}
+			request: ${requestAmount}`);
+	}
+	if (BigInt(requestAmount) - splitsSum !== BigInt(permitted[0].amount)) {
+		throw new Error(`permitted amount for primary recipient does not equal requested amount - sum of splits
+			permitted: ${permitted[0].amount} requested-splits: ${BigInt(requestAmount) - splitsSum}`)
+	}
+	if (transferDetails[0].to !== requestRecipient) {
+		throw new Error(`transferDetails to does not equal request recipient. transferDetails: ${transferDetails[0].to}
+			request recipient: ${requestRecipient}`);
+	}
 }
 
 function toReceipt(receipt: TransactionReceipt) {

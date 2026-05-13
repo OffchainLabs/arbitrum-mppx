@@ -140,39 +140,51 @@ export const PERMIT2_SINGLE_ABI = [
 ] as const;
 
 export const PERMIT2_BATCH_ABI = [{
-    type: "function",
-    name: "permitWitnessTransferFrom",
-    stateMutability: "nonpayable",
-    inputs: [
-      {
-        name: "permit",
-        type: "tuple",
-        components: [
-          {
-            name: "permitted",
-            type: "tuple[]",
-            components: [
-              { name: "token", type: "address" },
-              { name: "amount", type: "uint256" },
-            ],
-          },
-          { name: "nonce", type: "uint256" },
-          { name: "deadline", type: "uint256" },
-        ],
-      },
-      {
-        name: "transferDetails",
-        type: "tuple[]",
-        components: [
-          { name: "to", type: "address" },
-          { name: "requestedAmount", type: "uint256" },
-        ],
-      },
-      { name: "owner", type: "address" },
-      { name: "witness", type: "bytes32" },
-      { name: "witnessTypeString", type: "string" },
-      { name: "signature", type: "bytes" },
-    ],
-    outputs: [],
-  },
+  type: "function",
+  name: "permitWitnessTransferFrom",
+  stateMutability: "nonpayable",
+  inputs: [
+    {
+      name: "permit",
+      type: "tuple",
+      components: [
+        {
+          name: "permitted",
+          type: "tuple[]",
+          components: [
+            { name: "token", type: "address" },
+            { name: "amount", type: "uint256" },
+          ],
+        },
+        { name: "nonce", type: "uint256" },
+        { name: "deadline", type: "uint256" },
+      ],
+    },
+    {
+      name: "transferDetails",
+      type: "tuple[]",
+      components: [
+        { name: "to", type: "address" },
+        { name: "requestedAmount", type: "uint256" },
+      ],
+    },
+    { name: "owner", type: "address" },
+    { name: "witness", type: "bytes32" },
+    { name: "witnessTypeString", type: "string" },
+    { name: "signature", type: "bytes" },
+  ],
+  outputs: [],
+},
 ] as const;
+
+export type Permit2Payload = {
+  type: string,
+  permit: {
+    permitted: { token: string, amount: string }[],
+    nonce: string,
+    deadline: string,
+  },
+  transferDetails: { to: string, requestedAmount: string }[],
+  witness: { challengeHash: string },
+  signature: string,
+}
