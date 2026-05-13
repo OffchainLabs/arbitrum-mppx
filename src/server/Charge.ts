@@ -163,6 +163,9 @@ export function charge(parameters: charge.Parameters) {
 							signature: payload.signature as Hex
 						});
 					}
+					if (!signatureValid) {
+						throw new Error("Client signature is invalid")
+					}
 
 					const challengeHash = keccak256(encodePacked(
 						defaults.CHALLENGE_HASH_ABI,
