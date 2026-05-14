@@ -286,8 +286,7 @@ export function charge(parameters: charge.Parameters) {
 					if (splits === undefined) {
 						transactionInfo = {
 							account: serverAccount,
-							chain: client.chain,
-							to: defaults.PERMIT2_ADDRESS as Hex,
+							to: defaults.PERMIT2_ADDRESS as Address,
 							data: encodeFunctionData({
 								abi: defaults.PERMIT2_SINGLE_ABI,
 								functionName: "permitWitnessTransferFrom",
@@ -315,8 +314,7 @@ export function charge(parameters: charge.Parameters) {
 					else {
 						transactionInfo = {
 							account: serverAccount,
-							chain: client.chain,
-							to: defaults.PERMIT2_ADDRESS as Hex,
+							to: defaults.PERMIT2_ADDRESS as Address,
 							data: encodeFunctionData({
 								abi: defaults.PERMIT2_BATCH_ABI,
 								functionName: "permitWitnessTransferFrom",
@@ -343,12 +341,14 @@ export function charge(parameters: charge.Parameters) {
 					}
 
 					// Simulate via eth_call
+					// I dont understand why I have to remove chainID for eth_call to not throw error but then
+					// in authorization it doesnt care if chainId is a part of eth_call. TS 4/10
 					const ethCallResponse = await call(client, transactionInfo);
 					if (ethCallResponse.data !== undefined) {
 						throw new Error(`simulated transaction failed: ${ethCallResponse}`);
 					}
 
-					const transactionHash = await sendTransaction(client, transactionInfo);
+					const transactionHash = await sendTransaction(client, { chain: client.chain, ...transactionInfo });
 					const receipt = await waitForTransactionReceipt(client, { hash: transactionHash });
 
 					// Check the logs and make sure they line up with what should have happened
