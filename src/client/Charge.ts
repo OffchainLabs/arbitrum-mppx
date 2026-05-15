@@ -39,7 +39,7 @@ export function charge(parameters: charge.Parameters) {
 
       const client = await resolveClient(chainId, rpcUrl)
 
-      if (chainId !== parameters.chainId) {
+      if (chainId !== client.chain?.id) {
         throw new Error("Client account chainID does not match challenge chainID")
       }
 
@@ -49,7 +49,7 @@ export function charge(parameters: charge.Parameters) {
       }
 
       const balance = await readContract(client, {
-        address: request.currency as Address,
+        address: currency as Address,
         abi: erc20Abi,
         functionName: 'balanceOf',
         args: [account.address],
@@ -61,10 +61,10 @@ export function charge(parameters: charge.Parameters) {
       }
 
       /**
-       * if credentialTypes is undefined, it assumes permit2 is being used. Maybe we should deviate from
+       * if credentialTypes is undefined, it assumes transaction is being used. Maybe we should deviate from
        * the spec and require credentialTypes always since I see no reason in making it an assumption
        */
-      if (credentialTypes?.includes("permit2") || credentialTypes === undefined) {
+      if (credentialTypes?.includes("permit2")) {
         // TODO: implement permit2
 
       }
@@ -84,8 +84,8 @@ export function charge(parameters: charge.Parameters) {
          * so validBefore can always be equal to it
          */
         const validAfter = 0n;
-        const validBefore = challenge.expires
-          ? BigInt(Math.floor(new Date(challenge.expires).getTime() / 1000))
+        const validBefore = expires
+          ? BigInt(Math.floor(new Date(expires).getTime() / 1000))
           : BigInt(Math.floor(Date.now() / 1000) + 600); // 10 minutes default 
 
         const tokenInfo = defaults.erc3009Tokens[currency.toLowerCase()]
