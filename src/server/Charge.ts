@@ -10,30 +10,24 @@ import {
 	createClient,
 	http,
 	erc20Abi,
-	parseEventLogs
+	parseEventLogs,
+	numberToBytes
 } from "viem";
 import type { Address, Hex, Client, Chain, Account, TransactionReceipt } from "viem"
 import { sendTransaction, waitForTransactionReceipt, readContract, call } from "viem/actions"
+import { resolveClients } from "../utils.js";
 
 export function charge(parameters: charge.Parameters) {
 	const {
 		currency,
 		recipient,
 		methodDetails,
-		rpcUrl
+		rpcUrls
 	} = parameters;
 
 	const serverAccount = parameters.account;
 
-	const resolveClient = async (
-		chainId: number,
-		rpcUrl: string | undefined
-	): Promise<Client> => {
-		const id = chainId;
-		const url = rpcUrl ?? defaults.rpcUrl[chainId];
-		if (!url) throw new Error(`chainId: ${chainId} is unsupported`)
-		return createClient({ chain: { id } as Chain, transport: http(url) })
-	}
+	const clientsMap = resolveClients(rpcUrls);
 
 	return Method.toServer(Methods.arbitrumCharge, {
 		defaults: {
@@ -74,11 +68,15 @@ export function charge(parameters: charge.Parameters) {
 				splits
 			} = methodDetails;
 
+			const client = clientsMap.get(chainId);
+			if (client === undefined) {
+				throw new Error(`rpcUrl not provided for chainId: ${chainId}`);
+			}
+
 			/**
 			 * Verification steps
 			 */
 
-			const client = await resolveClient(chainId, rpcUrl);
 
 			if (splits && payload.type !== "permit2") {
 				throw new Error(`Splits is only compatible with type: permit2, Payload type given: ${payload.type}`)
@@ -260,7 +258,7 @@ export declare namespace charge {
 			splits?: string[] | undefined
 		}
 		account: Account
-		rpcUrl?: string
+		rpcUrls?: Map<number, string>
 	}
 
 }

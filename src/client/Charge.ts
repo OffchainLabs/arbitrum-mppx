@@ -5,41 +5,36 @@ import type { Client, Account, Address, Chain } from "viem"
 import { signTypedData, readContract } from "viem/actions"
 import * as defaults from "../default.js"
 import { encodePacked } from "viem"
+import { resolveClients } from "../utils.js"
 
 
 export function charge(parameters: charge.Parameters) {
-  const resolveClient = async (
-    chainId: number,
-    rpcUrl: string | undefined
-  ): Promise<Client> => {
-    const id = chainId;
-    const url = rpcUrl ?? defaults.rpcUrl[chainId];
-    if (!url) throw new Error(`chainId: ${chainId} is unsupported`)
-    return createClient({ chain: { id } as Chain, transport: http(url) })
-  }
+  
+  const { rpcUrls } = parameters;
 
+  const clientsMap = resolveClients(rpcUrls)
 
   return Method.toClient(Methods.arbitrumCharge, {
-
+    
     async createCredential({ challenge }) {
       const { request, expires } = challenge
-      const { account, rpcUrl } = parameters
-
+      const { account } = parameters
+      
       const amount = BigInt(request.amount);
       const currency = request.currency as Address;
       const recipient = request.recipient as Address;
-
+      
       const { methodDetails } = request;
-
+      
       const {
         chainId,
         credentialTypes,
         splits,
       } = methodDetails
+      
+      const client = clientsMap.get(chainId);
 
-      const client = await resolveClient(chainId, rpcUrl)
-
-      if (chainId !== client.chain?.id) {
+      if (chainId !== client?.chain?.id) {
         throw new Error("Client account chainID does not match challenge chainID")
       }
 
@@ -168,6 +163,6 @@ export declare namespace charge {
   type Parameters = {
     account: Account
     chainId: number
-    rpcUrl?: string
+    rpcUrls?: Map<number, string>
   }
 }
