@@ -25,7 +25,7 @@ export function charge(parameters: ChargeParameters): Method.Client<typeof Metho
     async createCredential({ challenge }) {
       const { request, expires } = challenge
       const { account } = parameters
-      
+
       const amount = BigInt(request.amount);
       const currency = request.currency as Address;
       const recipient = request.recipient as Address;
