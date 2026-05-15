@@ -1,18 +1,19 @@
-import { Method, Credential, z } from "mppx"
+import { Method, Credential } from "mppx"
 import * as Methods from "../Methods.js"
-import { createClient, keccak256, http } from "viem"
+import { createClient, keccak256, http, erc20Abi } from "viem"
 import type { Client, Account, Address, Chain } from "viem"
-import { signTypedData } from "viem/actions"
+import { signTypedData, readContract } from "viem/actions"
 import * as defaults from "../default.js"
 import { encodePacked } from "viem"
 
 
 export function charge(parameters: charge.Parameters) {
   const resolveClient = async (
-    chainId: number
+    chainId: number,
+    rpcUrl: string | undefined
   ): Promise<Client> => {
     const id = chainId;
-    const url = defaults.rpcUrl[chainId];
+    const url = rpcUrl ?? defaults.rpcUrl[chainId];
     if (!url) throw new Error(`chainId: ${chainId} is unsupported`)
     return createClient({ chain: { id } as Chain, transport: http(url) })
   }
@@ -22,7 +23,7 @@ export function charge(parameters: charge.Parameters) {
 
     async createCredential({ challenge }) {
       const { request, expires } = challenge
-      const { account } = parameters
+      const { account, rpcUrl } = parameters
 
       const amount = BigInt(request.amount);
       const currency = request.currency as Address;
@@ -32,13 +33,11 @@ export function charge(parameters: charge.Parameters) {
 
       const {
         chainId,
-        permit2Address,
         credentialTypes,
-        decimals,
         splits,
       } = methodDetails
 
-      const client = await resolveClient(chainId)
+      const client = await resolveClient(chainId, rpcUrl)
 
       if (chainId !== parameters.chainId) {
         throw new Error("Client account chainID does not match challenge chainID")
@@ -47,6 +46,18 @@ export function charge(parameters: charge.Parameters) {
       if (expires !== undefined && new Date(expires).getTime() < Date.now()) {
         throw new Error(`Challenge has expired. Current Time: ${Date.now()}
         \n challenge expiry time: ${new Date(expires).getTime()}`);
+      }
+
+      const balance = await readContract(client, {
+        address: request.currency as Address,
+        abi: erc20Abi,
+        functionName: 'balanceOf',
+        args: [account.address],
+      })
+
+      if (balance < BigInt(amount)) {
+        throw new Error(`Insufficient funds to submit credential. Funds: ${balance} 
+                    Required funds: ${amount}`)
       }
 
       /**
@@ -157,5 +168,6 @@ export declare namespace charge {
   type Parameters = {
     account: Account
     chainId: number
+    rpcUrl?: string
   }
 }

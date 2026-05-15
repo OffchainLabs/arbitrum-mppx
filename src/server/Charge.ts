@@ -17,21 +17,20 @@ import { sendTransaction, waitForTransactionReceipt, readContract, call } from "
 
 export function charge(parameters: charge.Parameters) {
 	const {
-		amount,
 		currency,
 		recipient,
-		description,
-		externalId,
 		methodDetails,
+		rpcUrl
 	} = parameters;
 
 	const serverAccount = parameters.account;
 
 	const resolveClient = async (
-		chainId: number
+		chainId: number,
+		rpcUrl: string | undefined
 	): Promise<Client> => {
 		const id = chainId;
-		const url = defaults.rpcUrl[chainId];
+		const url = rpcUrl ?? defaults.rpcUrl[chainId];
 		if (!url) throw new Error(`chainId: ${chainId} is unsupported`)
 		return createClient({ chain: { id } as Chain, transport: http(url) })
 	}
@@ -65,8 +64,7 @@ export function charge(parameters: charge.Parameters) {
 		async verify({ credential, request }) {
 			const {
 				challenge,
-				payload,
-				source
+				payload
 			} = credential;
 
 			const { methodDetails } = request
@@ -80,7 +78,7 @@ export function charge(parameters: charge.Parameters) {
 			 * Verification steps
 			 */
 
-			const client = await resolveClient(chainId);
+			const client = await resolveClient(chainId, rpcUrl);
 
 			if (splits && payload.type !== "permit2") {
 				throw new Error(`Splits is only compatible with type: permit2, Payload type given: ${payload.type}`)
@@ -121,7 +119,7 @@ export function charge(parameters: charge.Parameters) {
 						args: [payload.from as Address],
 					})
 
-					if (balance.toString() < payload.value) {
+					if (balance < BigInt(payload.value)) {
 						throw new Error(`Client does not have enough funds for transaction. Client funds: ${balance} 
 							Required funds: ${payload.value}`)
 					}
@@ -186,9 +184,11 @@ export function charge(parameters: charge.Parameters) {
 					}
 
 					// Simulate the transaction via eth_call to not use gas
-					const ethCallResponse = await call(client, transactionInfo);
-					if (ethCallResponse.data !== undefined) {
-						throw new Error(`simulated transaction failed: ${ethCallResponse}`);
+					try {
+						await call(client, transactionInfo);
+					}
+					catch (err) {
+						throw new Error("Transaction simulation (eth_call) failed", { cause: err });
 					}
 
 					// Submit transaction
@@ -202,7 +202,7 @@ export function charge(parameters: charge.Parameters) {
 						logs: receipt.logs
 					});
 
-					if (!parsedLogs[0]) {
+					if (parsedLogs[0] === undefined) {
 						throw new Error("No transfer logs found")
 					}
 
@@ -260,6 +260,7 @@ export declare namespace charge {
 			splits?: string[] | undefined
 		}
 		account: Account
+		rpcUrl?: string
 	}
 
 }
