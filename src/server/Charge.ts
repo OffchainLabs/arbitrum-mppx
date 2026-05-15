@@ -75,7 +75,8 @@ export function charge(parameters: ChargeParameters): Method.Server<typeof Metho
 		async verify({ credential, request }) {
 			const {
 				challenge,
-				payload
+				payload,
+				source
 			} = credential;
 
 			const { methodDetails } = request
@@ -113,7 +114,8 @@ export function charge(parameters: ChargeParameters): Method.Server<typeof Metho
 					if (parts.length !== 5 || parts[0] !== 'did' || parts[1] !== 'pkh') {
 						throw new Error(`Invalid did:pkh: ${source}`);
 					}
-					const [, , namespace, chainIdStr, address] = parts
+					
+					const [, , , chainIdStr, address] = parts
 					if (!isAddress(address as Address)) throw new Error(`Invalid address: ${address}`);
 
 					if (BigInt(payload.permit.deadline) < BigInt(Math.floor(Date.now() / 1000))) throw new Error(`Client payload

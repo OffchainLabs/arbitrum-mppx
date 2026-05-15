@@ -1,7 +1,7 @@
 import { Method, Credential } from "mppx"
 import * as Methods from "../Methods.js"
 import { keccak256, erc20Abi } from "viem"
-import type { Account, Address } from "viem"
+import type { Account, Address, Hex } from "viem"
 import { signTypedData, readContract } from "viem/actions"
 import * as defaults from "../default.js"
 import { encodePacked } from "viem"
