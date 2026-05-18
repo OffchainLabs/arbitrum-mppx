@@ -1,11 +1,11 @@
 import { Method, Credential } from "mppx"
 import * as Methods from "../Methods.js"
-import { createClient, keccak256, http, erc20Abi } from "viem"
-import type { Client, Account, Address, Chain, Hex } from "viem"
+import { keccak256, erc20Abi } from "viem"
+import type { Account, Address } from "viem"
 import { signTypedData, readContract } from "viem/actions"
 import * as defaults from "../default.js"
 import { encodePacked } from "viem"
-import { resolveClients } from "../utils.js"
+import { resolveClients, buildPermit2TypedData } from "../utils.js"
 
 
 function createChallengeHash(id: string, realm: string): `0x${string}` {
@@ -16,13 +16,13 @@ function createChallengeHash(id: string, realm: string): `0x${string}` {
 }
 
 export function charge(parameters: charge.Parameters) {
-  
+
   const { rpcUrls } = parameters;
 
   const clientsMap = resolveClients(rpcUrls)
 
   return Method.toClient(Methods.arbitrumCharge, {
-    
+
     async createCredential({ challenge }) {
       const { request, expires } = challenge
       const { account } = parameters
@@ -30,15 +30,15 @@ export function charge(parameters: charge.Parameters) {
       const amount = BigInt(request.amount);
       const currency = request.currency as Address;
       const recipient = request.recipient as Address;
-      
+
       const { methodDetails } = request;
-      
+
       const {
         chainId,
         credentialTypes,
         splits,
       } = methodDetails
-      
+
       const client = clientsMap.get(chainId);
 
       if (chainId !== client?.chain?.id) {
@@ -73,8 +73,8 @@ export function charge(parameters: charge.Parameters) {
         const nonce = BigInt(challengeHashWitness);
 
         let sum = BigInt(0);
-        let permitted: Array<{ token: Address, amount: string }> = [];
-        let transferDetails: Array<{ to: Address, requestedAmount: string }> = [];
+        const permitted: Array<{ token: Address, amount: string }> = [];
+        const transferDetails: Array<{ to: Address, requestedAmount: string }> = [];
 
         if (splits !== undefined) {
           // permitted and transferDetails are needed later so they are added here
@@ -102,67 +102,25 @@ export function charge(parameters: charge.Parameters) {
           ? BigInt(Math.floor(new Date(challenge.expires).getTime() / 1000))
           : BigInt(Math.floor(Date.now() / 1000) + 600);
 
-        // Re-useable signTypeData params
-        const domain = {
-          name: "Permit2",
-          chainId,
-          verifyingContract: defaults.PERMIT2_ADDRESS,
-        }
+        // Depending on if splits exists or not, we are required to use different permit2 functions
+        // buildPermit2TypedData does it for us
+        const isBatchPermit = splits !== undefined;
         
+        const typedData = buildPermit2TypedData({
+          chainId,
+          permitted,
+          recipient,
+          nonce,
+          deadline,
+          Witness: { challengeHash: challengeHashWitness},
+          isBatchPermit
+        }); 
 
-        let signature: Hex;
-        // Depending on if splits exists or not, we are required to use different permit2 functions 
-        // for batch transfers which is why this is here
-        if (splits === undefined) {
-          signature = await signTypedData(client, {
-            account,
-            domain,
-            types: {
-              PermitWitnessTransferFrom: [
-                { name: "permitted", type: "TokenPermissions" },
-                { name: "spender", type: "address" },
-                { name: "nonce", type: "uint256" },
-                { name: "deadline", type: "uint256" },
-                { name: "witness", type: "PaymentWitness" },
-              ],
-              TokenPermissions: defaults.tokenPermissionsType,
-              PaymentWitness: defaults.PaymentWitness,
-            },
-            primaryType: "PermitWitnessTransferFrom",
-            message: {
-              permitted: { token: permitted[0]!.token, amount: BigInt(permitted[0]!.amount) },
-              spender: recipient,
-              nonce,
-              deadline,
-              witness: { challengeHash: challengeHashWitness },
-            },
-          });
-        }
-        else {
-          signature = await signTypedData(client, {
-            account,
-            domain,
-            types: {
-              PermitBatchWitnessTransferFrom: [
-                { name: "permitted", type: "TokenPermissions[]" },
-                { name: "spender", type: "address" },
-                { name: "nonce", type: "uint256" },
-                { name: "deadline", type: "uint256" },
-                { name: "witness", type: "PaymentWitness" },
-              ],
-              TokenPermissions: defaults.tokenPermissionsType,
-              PaymentWitness: defaults.PaymentWitness,
-            },
-            primaryType: "PermitBatchWitnessTransferFrom",
-            message: {
-              permitted: permitted.map(p => ({ token: p.token, amount: BigInt(p.amount) })),
-              spender: recipient,
-              nonce,
-              deadline,
-              witness: { challengeHash: challengeHashWitness },
-            },
-          });
-        }
+        const signature = await signTypedData(client, {
+          account,
+          ...typedData
+          },
+        );
 
         return Credential.serialize({
           challenge,
