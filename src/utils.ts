@@ -12,6 +12,12 @@ export function resolveClients(
       transport: http(defaults.rpcUrl[defaults.chainId.arbitrumSepolia])
     });
     clientsMap.set(arbSepoliaClient.chain.id, arbSepoliaClient);
+    
+    const arbOneClient = createClient({
+      chain: { id: defaults.chainId.arbitrumOne } as Chain,
+      transport: http(defaults.rpcUrl[defaults.chainId.arbitrumOne])
+    });
+    clientsMap.set(arbOneClient.chain.id, arbOneClient);
   }
   else {
     for (const [id, url] of rpcUrls) {
