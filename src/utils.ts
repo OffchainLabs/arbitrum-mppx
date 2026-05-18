@@ -14,9 +14,7 @@ export function resolveClients(
     clientsMap.set(arbSepoliaClient.chain.id, arbSepoliaClient);
   }
   else {
-    for (let entry of rpcUrls) {
-      const id = entry[0];
-      const url = entry[1];
+    for (const [id, url] of rpcUrls) {
       const newClient = createClient({ chain: { id } as Chain, transport: http(url) });
       clientsMap.set(id, newClient);
     }

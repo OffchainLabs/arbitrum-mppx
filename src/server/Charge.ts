@@ -7,13 +7,10 @@ import {
 	keccak256,
 	encodePacked,
 	parseSignature,
-	createClient,
-	http,
 	erc20Abi,
-	parseEventLogs,
-	numberToBytes
+	parseEventLogs
 } from "viem";
-import type { Address, Hex, Client, Chain, Account, TransactionReceipt } from "viem"
+import type { Address, Hex, Account, TransactionReceipt } from "viem"
 import { sendTransaction, waitForTransactionReceipt, readContract, call } from "viem/actions"
 import { resolveClients } from "../utils.js";
 
@@ -95,7 +92,7 @@ export function charge(parameters: charge.Parameters) {
 						[challenge.id, challenge.realm]
 					))
 
-					if (payload.to != request.recipient) throw new Error(`Client payload sending to incorrect address: 
+					if (payload.to.toLocaleLowerCase() !== request.recipient.toLocaleLowerCase()) throw new Error(`Client payload sending to incorrect address: 
 				${payload.to} Should be ${request.recipient}`);
 
 					if (payload.value != request.amount) throw new Error(`Client payload value is incorrect. 
@@ -204,8 +201,8 @@ export function charge(parameters: charge.Parameters) {
 						throw new Error("No transfer logs found")
 					}
 
-					if (parsedLogs[0].args.from !== payload.from ||
-						parsedLogs[0].args.to !== payload.to ||
+					if (parsedLogs[0].args.from.toLocaleLowerCase() !== payload.from.toLocaleLowerCase() ||
+						parsedLogs[0].args.to.toLocaleLowerCase() !== payload.to.toLocaleLowerCase() ||
 						parsedLogs[0].args.value.toString() !== payload.value
 					) {
 						throw new Error(`Emitted log params do not match up with payload values.
