@@ -15,7 +15,7 @@ import {
 } from "viem";
 import type { Address, Hex, Account, TransactionReceipt } from "viem"
 import { sendTransaction, waitForTransactionReceipt, readContract, call } from "viem/actions"
-import { resolveClients } from "../utils.js";
+import { resolveClients, buildPermit2TypedData } from "../utils.js";
 
 export type ChargeParameters = {
 	amount?: string | undefined,
@@ -79,7 +79,7 @@ export function charge(parameters: ChargeParameters): Method.Server<typeof Metho
 				source
 			} = credential;
 
-			const { methodDetails } = request
+			const { methodDetails, recipient } = request
 
 			const {
 				chainId,
@@ -106,15 +106,20 @@ export function charge(parameters: ChargeParameters): Method.Server<typeof Metho
 					payload as defaults.Permit2Payload
 
 					const { transferDetails } = payload;
-					const { permitted } = payload.permit;
+					const { permitted, nonce, deadline } = payload.permit;
 
 					if (source === undefined) { throw new Error("Source cannot be undefined for type permit2") }
+
+					if (recipient !== serverAccount.address) {
+						throw new Error(`Recipient address must be the same as the account in parameters
+							Recipient: ${recipient} account: ${serverAccount.address}`);
+					}
 
 					const parts = source.split(':');
 					if (parts.length !== 5 || parts[0] !== 'did' || parts[1] !== 'pkh') {
 						throw new Error(`Invalid did:pkh: ${source}`);
 					}
-					
+
 					const [, , , chainIdStr, address] = parts
 					if (!isAddress(address as Address)) throw new Error(`Invalid address: ${address}`);
 
@@ -122,67 +127,25 @@ export function charge(parameters: ChargeParameters): Method.Server<typeof Metho
 						timeframe is no longer valid. Current time: ${Date.now() / 1000}
 							validBefore timestamp: ${payload.permit.deadline}`);
 
-					const domain = {
-						name: "Permit2",
-						chainId: Number(chainIdStr),
-						verifyingContract: defaults.PERMIT2_ADDRESS,
-					}
+					const isBatchPermit = splits !== undefined;
 
-					let signatureValid: boolean = false;
-					// Theres a single and batch version for PermitWitnessTransferFrom
-					if (splits === undefined) {
-						signatureValid = await verifyTypedData({
-							address: address as Address,
-							domain,
-							types: {
-								PermitWitnessTransferFrom: [
-									{ name: "permitted", type: "TokenPermissions" },
-									{ name: "spender", type: "address" },
-									{ name: "nonce", type: "uint256" },
-									{ name: "deadline", type: "uint256" },
-									{ name: "witness", type: "PaymentWitness" },
-								],
-								TokenPermissions: defaults.tokenPermissionsType,
-								PaymentWitness: defaults.PaymentWitness,
-							},
-							primaryType: "PermitWitnessTransferFrom",
-							message: {
-								permitted: { token: permitted[0]!.token as Address, amount: BigInt(permitted[0]!.amount) },
-								spender: recipient as Address,
-								nonce: BigInt(payload.permit.nonce),
-								deadline: BigInt(payload.permit.deadline),
-								witness: { challengeHash: payload.witness.challengeHash as Hex },
-							},
-							signature: payload.signature as Hex
-						});
-					}
-					else {
-						signatureValid = await verifyTypedData({
-							address: address as Address,
-							domain,
-							types: {
-								PermitBatchWitnessTransferFrom: [
-									{ name: "permitted", type: "TokenPermissions[]" },
-									{ name: "spender", type: "address" },
-									{ name: "nonce", type: "uint256" },
-									{ name: "deadline", type: "uint256" },
-									{ name: "witness", type: "PaymentWitness" },
-								],
-								TokenPermissions: defaults.tokenPermissionsType,
-								PaymentWitness: defaults.PaymentWitness,
-							},
-							primaryType: "PermitBatchWitnessTransferFrom",
-							message: {
-								permitted: permitted.map(p => ({ token: p.token as Address, amount: BigInt(p.amount) })),
-								spender: recipient as Address,
-								nonce: BigInt(payload.permit.nonce),
-								deadline: BigInt(payload.permit.deadline),
-								witness: { challengeHash: payload.witness.challengeHash as Hex },
-							},
-							signature: payload.signature as Hex
-						});
-					}
-					if (!signatureValid) {
+					const typedData = buildPermit2TypedData({
+						isBatchPermit: isBatchPermit,
+						chainId: chainId,
+						permitted: permitted,
+						recipient: recipient,
+						Witness: payload.witness,
+						nonce: BigInt(nonce),
+						deadline: BigInt(deadline)
+					});
+
+					const signature = await verifyTypedData({
+						address: address as Address,
+						...typedData,
+						signature: payload.signature as Hex
+					});
+
+					if (!signature) {
 						throw new Error("Client signature is invalid")
 					}
 
