@@ -1,47 +1,44 @@
-import { Method, Credential } from "mppx"
-import * as Methods from "../Methods.js"
-import { keccak256, erc20Abi } from "viem"
-import type { Account, Address } from "viem"
-import { signTypedData, readContract } from "viem/actions"
-import * as defaults from "../default.js"
-import { encodePacked } from "viem"
-import { resolveClients } from "../utils.js"
-
+import { Method, Credential } from "mppx";
+import * as Methods from "../Methods.js";
+import { keccak256, erc20Abi } from "viem";
+import type { Account, Address } from "viem";
+import { signTypedData, readContract } from "viem/actions";
+import * as defaults from "../default.js";
+import { encodePacked } from "viem";
+import { resolveClients } from "../utils.js";
 
 export type ChargeParameters = {
-  account: Account
-  chainId: number
-  rpcUrls?: Map<number, string>
-}
+  account: Account;
+  chainId: number;
+  rpcUrls?: Map<number, string>;
+};
 
-export function charge(parameters: ChargeParameters): Method.Client<typeof Methods.arbitrumCharge> {
-  
+export function charge(
+  parameters: ChargeParameters,
+): Method.Client<typeof Methods.arbitrumCharge> {
   const { rpcUrls } = parameters;
 
-  const clientsMap = resolveClients(rpcUrls)
+  const clientsMap = resolveClients(rpcUrls);
 
   return Method.toClient(Methods.arbitrumCharge, {
-    
     async createCredential({ challenge }) {
-      const { request, expires } = challenge
-      const { account } = parameters
-      
+      const { request, expires } = challenge;
+      const { account } = parameters;
+
       const amount = BigInt(request.amount);
       const currency = request.currency as Address;
       const recipient = request.recipient as Address;
-      
+
       const { methodDetails } = request;
-      
-      const {
-        chainId,
-        credentialTypes,
-        splits,
-      } = methodDetails
-      
+
+      const { chainId, credentialTypes, splits } = methodDetails;
+
       const client = clientsMap.get(chainId);
 
       if (chainId !== client?.chain?.id) {
-        throw new Error("Client account chainID does not match challenge chainID")
+        throw new Error(
+          "Client account chainID does not match challenge chainID",
+        );
       }
 
       if (expires !== undefined && new Date(expires).getTime() < Date.now()) {
@@ -52,13 +49,13 @@ export function charge(parameters: ChargeParameters): Method.Client<typeof Metho
       const balance = await readContract(client, {
         address: currency as Address,
         abi: erc20Abi,
-        functionName: 'balanceOf',
+        functionName: "balanceOf",
         args: [account.address],
-      })
+      });
 
       if (balance < BigInt(amount)) {
         throw new Error(`Insufficient funds to submit credential. Funds: ${balance} 
-                    Required funds: ${amount}`)
+                    Required funds: ${amount}`);
       }
 
       /**
@@ -67,35 +64,38 @@ export function charge(parameters: ChargeParameters): Method.Client<typeof Metho
        */
       if (credentialTypes?.includes("permit2")) {
         // TODO: implement permit2
-
-      }
-      else if (credentialTypes?.includes("authorization")) {
+      } else if (credentialTypes?.includes("authorization")) {
         if (splits !== undefined) {
-          throw new Error("Splits are not allowed for credentialType: authorization")
+          throw new Error(
+            "Splits are not allowed for credentialType: authorization",
+          );
         }
 
         // Nonce is given hashed challenge info as a form of challenge binding
-        const nonce = keccak256(encodePacked(
-          defaults.CHALLENGE_HASH_ABI,
-          [challenge.id, challenge.realm]
-        ))
+        const nonce = keccak256(
+          encodePacked(defaults.CHALLENGE_HASH_ABI, [
+            challenge.id,
+            challenge.realm,
+          ]),
+        );
 
         /**
-         * We may want to deviate from the spec and always require a challenge expiry 
+         * We may want to deviate from the spec and always require a challenge expiry
          * so validBefore can always be equal to it
          */
         const validAfter = 0n;
         const validBefore = expires
           ? BigInt(Math.floor(new Date(expires).getTime() / 1000))
-          : BigInt(Math.floor(Date.now() / 1000) + 600); // 10 minutes default 
+          : BigInt(Math.floor(Date.now() / 1000) + 600); // 10 minutes default
 
-        const tokenInfo = defaults.erc3009Tokens[currency.toLowerCase()]
+        const tokenInfo = defaults.erc3009Tokens[currency.toLowerCase()];
 
-        if (!tokenInfo) throw new Error(`EIP3009 Token contract: ${currency} not registered`)
+        if (!tokenInfo)
+          throw new Error(`EIP3009 Token contract: ${currency} not registered`);
         if (tokenInfo.chainId != chainId) {
           throw new Error(`Token: ${tokenInfo.name} 
-          on incorrect network: ${tokenInfo.chainId} current network: ${chainId}`)
-        };
+          on incorrect network: ${tokenInfo.chainId} current network: ${chainId}`);
+        }
 
         /**
          * Probably a later thing but we should have the user/agent verify with the user that they want to
@@ -140,18 +140,15 @@ export function charge(parameters: ChargeParameters): Method.Client<typeof Metho
             validAfter: validAfter.toString(),
             validBefore: validBefore.toString(),
             nonce: nonce,
-            signature: signature
-          }
-        })
-      }
-      else if (credentialTypes?.includes("transaction")) {
+            signature: signature,
+          },
+        });
+      } else if (credentialTypes?.includes("transaction")) {
         /**
          * Transaction and hash credential types have weaker challenge bindings so we
          * may not want to bother implementing them since it opens the door to fradulant payments
          */
-
-      }
-      else if (credentialTypes?.includes("hash")) {
+      } else if (credentialTypes?.includes("hash")) {
         /**
          * Transaction and hash credential types have weaker challenge bindings so we
          * may not want to bother implementing them since it opens the door to fradulant payments
@@ -159,7 +156,9 @@ export function charge(parameters: ChargeParameters): Method.Client<typeof Metho
       }
 
       // def a better way to word this error
-      throw new Error(`Arbitrum MPP does not support any given credential type: ${credentialTypes}`)
-    }
-  })
+      throw new Error(
+        `Arbitrum MPP does not support any given credential type: ${credentialTypes}`,
+      );
+    },
+  });
 }
