@@ -1,8 +1,8 @@
-import { Method, z } from 'mppx'
+import { Method, z } from "mppx";
 
 export const arbitrumCharge = Method.from({
-  name: 'arbitrum',
-  intent: 'charge',
+  name: "arbitrum",
+  intent: "charge",
   schema: {
     request: z.object({
       amount: z.string(),
@@ -15,13 +15,16 @@ export const arbitrumCharge = Method.from({
         permit2Address: z.string(),
         credentialTypes: z.optional(z.array(z.string())),
         decimals: z.optional(z.number()),
-        splits: z.optional(z.array(z.object({
-          recipient: z.string(),
-          amount: z.string(),
-          memo: z.optional(z.string())
-        })))
-      })
-
+        splits: z.optional(
+          z.array(
+            z.object({
+              recipient: z.string(),
+              amount: z.string(),
+              memo: z.optional(z.string()),
+            }),
+          ),
+        ),
+      }),
     }),
     credential: {
       payload: z.discriminatedUnion("type", [
@@ -38,13 +41,17 @@ export const arbitrumCharge = Method.from({
         z.object({
           type: z.literal("permit2"),
           permit: z.object({
-            permitted: z.array(z.object({ token: z.string(), amount: z.string() })),
+            permitted: z.array(
+              z.object({ token: z.string(), amount: z.string() }),
+            ),
             nonce: z.string(),
-            deadline: z.string()
+            deadline: z.string(),
           }),
-          transderDetails: z.array(z.object({ to: z.string(), requestedAmount: z.string() })),
+          transderDetails: z.array(
+            z.object({ to: z.string(), requestedAmount: z.string() }),
+          ),
           witness: z.object({ challengeHash: z.bigint() }),
-          signature: z.string()
+          signature: z.string(),
         }),
         z.object({
           // TODO: implement the hash payload
@@ -52,11 +59,9 @@ export const arbitrumCharge = Method.from({
         }),
         z.object({
           // TODO: implement the transaction payload
-          type: z.literal("transaction")
-        })
-
-
-      ])
+          type: z.literal("transaction"),
+        }),
+      ]),
     },
   },
-})
+});

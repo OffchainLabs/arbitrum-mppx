@@ -10,16 +10,18 @@ export type ChainId = (typeof chainId)[keyof typeof chainId];
 export const USDCdecimals = 6;
 
 export const TOKEN_CONTRACTS = {
-  USDC_ARBITRUM_ONE: "0xaf88d065e77c8cC2239327C5EDb3A432268e5831".toLowerCase() as Address,
-  USDC_ARBITRUM_SEPOLIA: "0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d".toLowerCase() as Address
-} as const 
+  USDC_ARBITRUM_ONE:
+    "0xaf88d065e77c8cC2239327C5EDb3A432268e5831".toLowerCase() as Address,
+  USDC_ARBITRUM_SEPOLIA:
+    "0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d".toLowerCase() as Address,
+} as const;
 
 export const rpcUrl: Record<number, string> = {
   [chainId.arbitrumOne]: "https://arb1.arbitrum.io/rpc",
   [chainId.arbitrumSepolia]: "https://sepolia-rollup.arbitrum.io/rpc",
 };
 
-export const CHALLENGE_HASH_ABI = ['string', 'string']
+export const CHALLENGE_HASH_ABI = ["string", "string"];
 
 export const erc3009Abi = [
   {
@@ -72,16 +74,18 @@ export const erc3009Abi = [
   },
 ] as const;
 
-export const erc3009Tokens: Record<string, { name: string; version: string; chainId: ChainId }> =
-  {
-    [TOKEN_CONTRACTS.USDC_ARBITRUM_ONE]: {
-      name: "USD Coin",
-      version: "2",
-      chainId: chainId.arbitrumOne,
-    },
-    [TOKEN_CONTRACTS.USDC_ARBITRUM_SEPOLIA]: {
-      name: "USD Coin",
-      version: "2",
-      chainId: chainId.arbitrumSepolia,
-    },
-  };
+export const erc3009Tokens: Record<
+  string,
+  { name: string; version: string; chainId: ChainId }
+> = {
+  [TOKEN_CONTRACTS.USDC_ARBITRUM_ONE]: {
+    name: "USD Coin",
+    version: "2",
+    chainId: chainId.arbitrumOne,
+  },
+  [TOKEN_CONTRACTS.USDC_ARBITRUM_SEPOLIA]: {
+    name: "USD Coin",
+    version: "2",
+    chainId: chainId.arbitrumSepolia,
+  },
+};

@@ -3,25 +3,27 @@ import * as defaults from "./default.js";
 import { createClient, http } from "viem";
 
 export function resolveClients(
-  rpcUrls: Map<number, string> | undefined
+  rpcUrls: Map<number, string> | undefined,
 ): Map<number, Client> {
   const clientsMap = new Map<number, Client>();
   if (rpcUrls === undefined) {
     const arbSepoliaClient = createClient({
       chain: { id: defaults.chainId.arbitrumSepolia } as Chain,
-      transport: http(defaults.rpcUrl[defaults.chainId.arbitrumSepolia])
+      transport: http(defaults.rpcUrl[defaults.chainId.arbitrumSepolia]),
     });
     clientsMap.set(arbSepoliaClient.chain.id, arbSepoliaClient);
-    
+
     const arbOneClient = createClient({
       chain: { id: defaults.chainId.arbitrumOne } as Chain,
-      transport: http(defaults.rpcUrl[defaults.chainId.arbitrumOne])
+      transport: http(defaults.rpcUrl[defaults.chainId.arbitrumOne]),
     });
     clientsMap.set(arbOneClient.chain.id, arbOneClient);
-  }
-  else {
+  } else {
     for (const [id, url] of rpcUrls) {
-      const newClient = createClient({ chain: { id } as Chain, transport: http(url) });
+      const newClient = createClient({
+        chain: { id } as Chain,
+        transport: http(url),
+      });
       clientsMap.set(id, newClient);
     }
   }
