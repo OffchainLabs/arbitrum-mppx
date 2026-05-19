@@ -3,7 +3,6 @@
   "version": "1.0.0",
   "description": "",
   "type": "module",
-  "main": "index.js",
   "scripts": {
     "server": "tsx test/server",
     "client": "tsx test/client",
@@ -27,6 +26,10 @@
     "./server": {
       "types": "./dist/server/index.d.ts",
       "default": "./dist/server/index.js"
+    },
+    "./default": {
+      "types": "./dist/default.d.ts",
+      "default": "./dist/default.js"
     }
   },
   "author": "",
