@@ -1,6 +1,6 @@
 import express from 'express'
 import { Mppx } from 'mppx/express'
-import { arbitrum } from '../src/server/index.js';
+import { charge } from '../src/server/index.js';
 import { config } from 'dotenv';
 import * as defaults from "../src/default.js"
 import { privateKeyToAccount } from 'viem/accounts';
@@ -21,7 +21,7 @@ if (process.env.SERVER_PRIVATE_KEY == undefined) throw new Error(`Server private
 const account = privateKeyToAccount(process.env.SERVER_PRIVATE_KEY as Hex)
 
 const mppx = Mppx.create({
-  methods: [arbitrum.charge({
+  methods: [charge({
     recipient: account.address,
     currency: defaults.TOKEN_CONTRACTS.USDC_ARBITRUM_SEPOLIA,
     methodDetails: {

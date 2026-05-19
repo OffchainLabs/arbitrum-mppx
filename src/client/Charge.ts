@@ -1,14 +1,20 @@
 import { Method, Credential } from "mppx"
 import * as Methods from "../Methods.js"
-import { createClient, keccak256, http, erc20Abi } from "viem"
-import type { Client, Account, Address, Chain } from "viem"
+import { keccak256, erc20Abi } from "viem"
+import type { Account, Address } from "viem"
 import { signTypedData, readContract } from "viem/actions"
 import * as defaults from "../default.js"
 import { encodePacked } from "viem"
 import { resolveClients } from "../utils.js"
 
 
-export function charge(parameters: charge.Parameters) {
+export type ChargeParameters = {
+  account: Account
+  chainId: number
+  rpcUrls?: Map<number, string>
+}
+
+export function charge(parameters: ChargeParameters): Method.Client<typeof Methods.arbitrumCharge> {
   
   const { rpcUrls } = parameters;
 
@@ -156,13 +162,4 @@ export function charge(parameters: charge.Parameters) {
       throw new Error(`Arbitrum MPP does not support any given credential type: ${credentialTypes}`)
     }
   })
-}
-
-
-export declare namespace charge {
-  type Parameters = {
-    account: Account
-    chainId: number
-    rpcUrls?: Map<number, string>
-  }
 }

@@ -1,5 +1,5 @@
 import { Mppx } from 'mppx/client'
-import { arbitrum } from '../src/client/index.js';
+import { charge } from '../src/client/index.js';
 import { config } from 'dotenv';
 import { privateKeyToAccount } from 'viem/accounts';
 import { exit } from 'node:process';
@@ -13,7 +13,7 @@ const privateKey = process.env.CLIENT_PRIVATE_KEY as `0x${string}`
 const account = privateKeyToAccount(privateKey)
 
 const mppx = Mppx.create({
-  methods: [arbitrum.charge({
+  methods: [charge({
     account: account,
     chainId: 421614
   })]
@@ -27,4 +27,3 @@ const paymentReceipt = response.headers.get('payment-receipt')
 //it will be defined im just lazy to write an error
 if (paymentReceipt == undefined) exit();
 console.log(Buffer.from(paymentReceipt, 'base64').toString('binary'));
-

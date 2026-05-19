@@ -14,7 +14,24 @@ import type { Address, Hex, Account, TransactionReceipt } from "viem"
 import { sendTransaction, waitForTransactionReceipt, readContract, call } from "viem/actions"
 import { resolveClients } from "../utils.js";
 
-export function charge(parameters: charge.Parameters) {
+export type ChargeParameters = {
+	amount?: string | undefined,
+	currency?: string | undefined,
+	recipient?: string | undefined,
+	description?: string | undefined,
+	externalId?: string | undefined,
+	methodDetails?: {
+		chainId?: number | undefined,
+		permit2Address?: string | undefined,
+		credentialTypes?: string[] | undefined,
+		decimals?: number | undefined,
+		splits?: string[] | undefined
+	}
+	account: Account
+	rpcUrls?: Map<number, string>
+}
+
+export function charge(parameters: ChargeParameters): Method.Server<typeof Methods.arbitrumCharge> {
 	const {
 		currency,
 		recipient,
@@ -238,24 +255,4 @@ function toReceipt(receipt: TransactionReceipt) {
 		timestamp: new Date().toISOString(),
 		reference: receipt.transactionHash,
 	};
-}
-
-export declare namespace charge {
-	type Parameters = {
-		amount?: string | undefined,
-		currency?: string | undefined,
-		recipient?: string | undefined,
-		description?: string | undefined,
-		externalId?: string | undefined,
-		methodDetails?: {
-			chainId?: number | undefined,
-			permit2Address?: string | undefined,
-			credentialTypes?: string[] | undefined,
-			decimals?: number | undefined,
-			splits?: string[] | undefined
-		}
-		account: Account
-		rpcUrls?: Map<number, string>
-	}
-
 }
