@@ -1,10 +1,10 @@
 import express from 'express'
 import { Mppx } from 'mppx/express'
-import { arbitrum } from '../src/server';
+import { arbitrum } from '../src/server/index.js';
 import { config } from 'dotenv';
-import * as defaults from "../src/default"
+import * as defaults from "../src/default.js"
 import { privateKeyToAccount } from 'viem/accounts';
-import { Hex } from 'viem';
+import type { Hex } from 'viem';
 const PORT = 3000;
 
 config()

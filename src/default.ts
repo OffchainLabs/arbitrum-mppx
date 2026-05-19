@@ -1,5 +1,4 @@
-import { Address, Chain } from "viem";
-import { arbitrum, arbitrumSepolia } from "viem/chains";
+import type { Address } from "viem";
 
 export const chainId = {
   arbitrumOne: 42161,

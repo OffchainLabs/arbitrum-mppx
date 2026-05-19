@@ -1,5 +1,5 @@
 import { Mppx } from 'mppx/client'
-import { arbitrum } from '../src/client';
+import { arbitrum } from '../src/client/index.js';
 import { config } from 'dotenv';
 import { privateKeyToAccount } from 'viem/accounts';
 import { exit } from 'node:process';

@@ -1,11 +1,10 @@
-import { Method, Challenge, Credential, z } from "mppx"
+import { Method, Credential, z } from "mppx"
 import * as Methods from "../Methods.js"
-import { createClient, Client, keccak256, Account, Address, Chain, http } from "viem"
-import { parseAccount } from "viem/accounts"
+import { createClient, keccak256,  http } from "viem"
+import type { Client, Account, Address, Chain } from "viem"
 import { signTypedData } from "viem/actions"
 import * as defaults from "../default.js"
 import { encodePacked } from "viem"
-import { token } from "viem/tempo/actions"
 
 
 export function charge(parameters: charge.Parameters) {
