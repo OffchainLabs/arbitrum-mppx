@@ -8,7 +8,6 @@
     "client": "tsx test/client",
     "build": "rm -rf dist && tsc",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "preinstall": "npx only-allow pnpm",
     "lint": "eslint . --fix",
     "format": "prettier --write . "
   },
