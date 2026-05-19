@@ -14,7 +14,8 @@ const account = privateKeyToAccount(privateKey)
 
 const mppx = Mppx.create({
   methods: [arbitrum.charge({
-    account: account
+    account: account,
+    chainId: 421614
   })]
 })
 
