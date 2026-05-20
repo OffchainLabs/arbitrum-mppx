@@ -1,8 +1,10 @@
-import { Mppx } from 'mppx/client';
-import { charge } from '../src/client/index.js';
 import { config } from 'dotenv';
-import { privateKeyToAccount } from 'viem/accounts';
+import { Mppx } from 'mppx/client';
 import { exit } from 'node:process';
+import { privateKeyToAccount } from 'viem/accounts';
+
+import { charge } from '../src/client/index.js';
+
 config();
 
 if (process.env.CLIENT_PRIVATE_KEY == undefined) {

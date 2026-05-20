@@ -1,6 +1,7 @@
-import type { Client, Chain } from 'viem';
-import * as defaults from './default.js';
+import type { Chain, Client } from 'viem';
 import { createClient, http } from 'viem';
+
+import * as defaults from './default.js';
 
 export function resolveClients(rpcUrls: Map<number, string> | undefined): Map<number, Client> {
   const clientsMap = new Map<number, Client>();

@@ -12,7 +12,6 @@
     "format": "prettier --write . "
   },
   "packageManager": "pnpm@10.30.3",
-  "prettier": "@offchainlabs/prettier-config",
   "keywords": [],
   "files": [
     "dist",

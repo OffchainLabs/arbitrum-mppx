@@ -1,10 +1,12 @@
+import { config } from 'dotenv';
 import express from 'express';
 import { Mppx } from 'mppx/express';
-import { charge } from '../src/server/index.js';
-import { config } from 'dotenv';
-import * as defaults from '../src/default.js';
-import { privateKeyToAccount } from 'viem/accounts';
 import type { Hex } from 'viem';
+import { privateKeyToAccount } from 'viem/accounts';
+
+import * as defaults from '../src/default.js';
+import { charge } from '../src/server/index.js';
+
 const PORT = 3000;
 
 config();
