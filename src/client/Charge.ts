@@ -23,7 +23,7 @@ function createChallengeHash(id: string, realm: string): `0x${string}` {
 
 
 export function charge(parameters: ChargeParameters): Method.Client<typeof Methods.arbitrumCharge> {
-  
+
   const { rpcUrls } = parameters;
 
   const clientsMap = resolveClients(rpcUrls)
@@ -110,23 +110,20 @@ export function charge(parameters: ChargeParameters): Method.Client<typeof Metho
           : BigInt(Math.floor(Date.now() / 1000) + 600);
 
         // Depending on if splits exists or not, we are required to use different permit2 functions
-        // buildPermit2TypedData does it for us
-        const isBatchPermit = splits !== undefined;
-        
+        // buildPermit2TypedData checks and does it for us 
         const typedData = buildPermit2TypedData({
           chainId,
           permitted,
           recipient,
           nonce,
           deadline,
-          Witness: { challengeHash: challengeHashWitness},
-          isBatchPermit
-        }); 
+          Witness: { challengeHash: challengeHashWitness }
+        });
 
         const signature = await signTypedData(client, {
           account,
           ...typedData
-          },
+        },
         );
 
         return Credential.serialize({

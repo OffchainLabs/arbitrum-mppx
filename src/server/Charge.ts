@@ -122,14 +122,16 @@ export function charge(parameters: ChargeParameters): Method.Server<typeof Metho
 					const [, , , chainIdStr, address] = parts
 					if (!isAddress(address as Address)) throw new Error(`Invalid address: ${address}`);
 
+					if (Number(chainIdStr) !== chainId) throw new Error(`did:pkh gave incorrect chainId
+						did:pkh chainId: ${chainIdStr} methodDetails chainId: ${chainId}`);
+
 					if (BigInt(payload.permit.deadline) < BigInt(Math.floor(Date.now() / 1000))) throw new Error(`Client payload
 						timeframe is no longer valid. Current time: ${Date.now() / 1000}
 							validBefore timestamp: ${payload.permit.deadline}`);
 
-					const isBatchPermit = splits !== undefined;
-
+					// Depending on if splits exists or not, we are required to use different permit2 functions
+					// buildPermit2TypedData checks and does it for us
 					const typedData = buildPermit2TypedData({
-						isBatchPermit: isBatchPermit,
 						chainId: chainId,
 						permitted: permitted,
 						recipient: recipient,

@@ -35,9 +35,12 @@ export function buildPermit2TypedData(params: {
   nonce: bigint;
   deadline: bigint;
   Witness: defaults.Permit2Payload["witness"];
-  isBatchPermit: boolean;
 }) {
-  const { chainId, permitted, recipient, nonce, deadline, Witness, isBatchPermit } = params
+  const { chainId, permitted, recipient, nonce, deadline, Witness } = params
+
+  // if there is more than 1 entry in permitted then we need to call the 
+  // batch version of permitWitnessTransferFrom which is the same function name but takes arrays
+  const isBatchPermit = permitted.length > 1;
 
   const permittedMessage = isBatchPermit ?
     permitted.map(p => ({ token: p.token as Address, amount: BigInt(p.amount) })) :
