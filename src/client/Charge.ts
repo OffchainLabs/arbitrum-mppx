@@ -1,11 +1,11 @@
-import { Method, Credential } from "mppx";
-import * as Methods from "../Methods.js";
-import { keccak256, erc20Abi } from "viem";
-import type { Account, Address } from "viem";
-import { signTypedData, readContract } from "viem/actions";
-import * as defaults from "../default.js";
-import { encodePacked } from "viem";
-import { resolveClients } from "../utils.js";
+import { Method, Credential } from 'mppx';
+import * as Methods from '../Methods.js';
+import { keccak256, erc20Abi } from 'viem';
+import type { Account, Address } from 'viem';
+import { signTypedData, readContract } from 'viem/actions';
+import * as defaults from '../default.js';
+import { encodePacked } from 'viem';
+import { resolveClients } from '../utils.js';
 
 export type ChargeParameters = {
   account: Account;
@@ -13,9 +13,7 @@ export type ChargeParameters = {
   rpcUrls?: Map<number, string>;
 };
 
-export function charge(
-  parameters: ChargeParameters,
-): Method.Client<typeof Methods.arbitrumCharge> {
+export function charge(parameters: ChargeParameters): Method.Client<typeof Methods.arbitrumCharge> {
   const { rpcUrls } = parameters;
 
   const clientsMap = resolveClients(rpcUrls);
@@ -36,9 +34,7 @@ export function charge(
       const client = clientsMap.get(chainId);
 
       if (chainId !== client?.chain?.id) {
-        throw new Error(
-          "Client account chainID does not match challenge chainID",
-        );
+        throw new Error('Client account chainID does not match challenge chainID');
       }
 
       if (expires !== undefined && new Date(expires).getTime() < Date.now()) {
@@ -49,7 +45,7 @@ export function charge(
       const balance = await readContract(client, {
         address: currency as Address,
         abi: erc20Abi,
-        functionName: "balanceOf",
+        functionName: 'balanceOf',
         args: [account.address],
       });
 
@@ -62,21 +58,16 @@ export function charge(
        * if credentialTypes is undefined, it assumes transaction is being used. Maybe we should deviate from
        * the spec and require credentialTypes always since I see no reason in making it an assumption
        */
-      if (credentialTypes?.includes("permit2")) {
+      if (credentialTypes?.includes('permit2')) {
         // TODO: implement permit2
-      } else if (credentialTypes?.includes("authorization")) {
+      } else if (credentialTypes?.includes('authorization')) {
         if (splits !== undefined) {
-          throw new Error(
-            "Splits are not allowed for credentialType: authorization",
-          );
+          throw new Error('Splits are not allowed for credentialType: authorization');
         }
 
         // Nonce is given hashed challenge info as a form of challenge binding
         const nonce = keccak256(
-          encodePacked(defaults.CHALLENGE_HASH_ABI, [
-            challenge.id,
-            challenge.realm,
-          ]),
+          encodePacked(defaults.CHALLENGE_HASH_ABI, [challenge.id, challenge.realm]),
         );
 
         /**
@@ -90,8 +81,7 @@ export function charge(
 
         const tokenInfo = defaults.erc3009Tokens[currency.toLowerCase()];
 
-        if (!tokenInfo)
-          throw new Error(`EIP3009 Token contract: ${currency} not registered`);
+        if (!tokenInfo) throw new Error(`EIP3009 Token contract: ${currency} not registered`);
         if (tokenInfo.chainId != chainId) {
           throw new Error(`Token: ${tokenInfo.name} 
           on incorrect network: ${tokenInfo.chainId} current network: ${chainId}`);
@@ -111,15 +101,15 @@ export function charge(
           },
           types: {
             TransferWithAuthorization: [
-              { name: "from", type: "address" },
-              { name: "to", type: "address" },
-              { name: "value", type: "uint256" },
-              { name: "validAfter", type: "uint256" },
-              { name: "validBefore", type: "uint256" },
-              { name: "nonce", type: "bytes32" },
+              { name: 'from', type: 'address' },
+              { name: 'to', type: 'address' },
+              { name: 'value', type: 'uint256' },
+              { name: 'validAfter', type: 'uint256' },
+              { name: 'validBefore', type: 'uint256' },
+              { name: 'nonce', type: 'bytes32' },
             ],
           },
-          primaryType: "TransferWithAuthorization",
+          primaryType: 'TransferWithAuthorization',
           message: {
             from: account.address,
             to: recipient,
@@ -133,7 +123,7 @@ export function charge(
         return Credential.serialize({
           challenge,
           payload: {
-            type: "authorization" as const,
+            type: 'authorization' as const,
             from: account.address,
             to: recipient,
             value: amount.toString(),
@@ -143,12 +133,12 @@ export function charge(
             signature: signature,
           },
         });
-      } else if (credentialTypes?.includes("transaction")) {
+      } else if (credentialTypes?.includes('transaction')) {
         /**
          * Transaction and hash credential types have weaker challenge bindings so we
          * may not want to bother implementing them since it opens the door to fradulant payments
          */
-      } else if (credentialTypes?.includes("hash")) {
+      } else if (credentialTypes?.includes('hash')) {
         /**
          * Transaction and hash credential types have weaker challenge bindings so we
          * may not want to bother implementing them since it opens the door to fradulant payments

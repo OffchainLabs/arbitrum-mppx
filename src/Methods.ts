@@ -1,8 +1,8 @@
-import { Method, z } from "mppx";
+import { Method, z } from 'mppx';
 
 export const arbitrumCharge = Method.from({
-  name: "arbitrum",
-  intent: "charge",
+  name: 'arbitrum',
+  intent: 'charge',
   schema: {
     request: z.object({
       amount: z.string(),
@@ -27,9 +27,9 @@ export const arbitrumCharge = Method.from({
       }),
     }),
     credential: {
-      payload: z.discriminatedUnion("type", [
+      payload: z.discriminatedUnion('type', [
         z.object({
-          type: z.literal("authorization"),
+          type: z.literal('authorization'),
           from: z.string(),
           to: z.string(),
           value: z.string(),
@@ -39,27 +39,23 @@ export const arbitrumCharge = Method.from({
           signature: z.string(),
         }),
         z.object({
-          type: z.literal("permit2"),
+          type: z.literal('permit2'),
           permit: z.object({
-            permitted: z.array(
-              z.object({ token: z.string(), amount: z.string() }),
-            ),
+            permitted: z.array(z.object({ token: z.string(), amount: z.string() })),
             nonce: z.string(),
             deadline: z.string(),
           }),
-          transderDetails: z.array(
-            z.object({ to: z.string(), requestedAmount: z.string() }),
-          ),
+          transderDetails: z.array(z.object({ to: z.string(), requestedAmount: z.string() })),
           witness: z.object({ challengeHash: z.bigint() }),
           signature: z.string(),
         }),
         z.object({
           // TODO: implement the hash payload
-          type: z.literal("hash"),
+          type: z.literal('hash'),
         }),
         z.object({
           // TODO: implement the transaction payload
-          type: z.literal("transaction"),
+          type: z.literal('transaction'),
         }),
       ]),
     },

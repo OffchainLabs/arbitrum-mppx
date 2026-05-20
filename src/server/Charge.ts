@@ -1,6 +1,6 @@
-import { Method } from "mppx";
-import * as Methods from "../Methods.js";
-import * as defaults from "../default.js";
+import { Method } from 'mppx';
+import * as Methods from '../Methods.js';
+import * as defaults from '../default.js';
 import {
   encodeFunctionData,
   verifyTypedData,
@@ -9,15 +9,10 @@ import {
   parseSignature,
   erc20Abi,
   parseEventLogs,
-} from "viem";
-import type { Address, Hex, Account, TransactionReceipt } from "viem";
-import {
-  sendTransaction,
-  waitForTransactionReceipt,
-  readContract,
-  call,
-} from "viem/actions";
-import { resolveClients } from "../utils.js";
+} from 'viem';
+import type { Address, Hex, Account, TransactionReceipt } from 'viem';
+import { sendTransaction, waitForTransactionReceipt, readContract, call } from 'viem/actions';
+import { resolveClients } from '../utils.js';
 
 export type ChargeParameters = {
   amount?: string | undefined;
@@ -36,9 +31,7 @@ export type ChargeParameters = {
   rpcUrls?: Map<number, string>;
 };
 
-export function charge(
-  parameters: ChargeParameters,
-): Method.Server<typeof Methods.arbitrumCharge> {
+export function charge(parameters: ChargeParameters): Method.Server<typeof Methods.arbitrumCharge> {
   const { currency, recipient, methodDetails, rpcUrls } = parameters;
 
   const serverAccount = parameters.account;
@@ -86,7 +79,7 @@ export function charge(
        * Verification steps
        */
 
-      if (splits && payload.type !== "permit2") {
+      if (splits && payload.type !== 'permit2') {
         throw new Error(
           `Splits is only compatible with type: permit2, Payload type given: ${payload.type}`,
         );
@@ -94,16 +87,13 @@ export function charge(
 
       // Different verifications for different types
       switch (payload.type) {
-        case "permit2": {
+        case 'permit2': {
           // TODO: implement permit2 verification
           break;
         }
-        case "authorization": {
+        case 'authorization': {
           const hashedNonce = keccak256(
-            encodePacked(defaults.CHALLENGE_HASH_ABI, [
-              challenge.id,
-              challenge.realm,
-            ]),
+            encodePacked(defaults.CHALLENGE_HASH_ABI, [challenge.id, challenge.realm]),
           );
 
           if (payload.to.toLowerCase() !== request.recipient.toLowerCase())
@@ -122,14 +112,13 @@ export function charge(
             throw new Error(`Client nonce is not the challengeHash`);
 
           const tokenInfo = defaults.erc3009Tokens[request.currency];
-          if (!tokenInfo)
-            throw new Error(`Token contract is not verified to have EIP3009`);
+          if (!tokenInfo) throw new Error(`Token contract is not verified to have EIP3009`);
 
           // Make sure client have enough funds
           const balance = await readContract(client, {
             address: request.currency as Address,
             abi: erc20Abi,
-            functionName: "balanceOf",
+            functionName: 'balanceOf',
             args: [payload.from as Address],
           });
 
@@ -148,15 +137,15 @@ export function charge(
             },
             types: {
               TransferWithAuthorization: [
-                { name: "from", type: "address" },
-                { name: "to", type: "address" },
-                { name: "value", type: "uint256" },
-                { name: "validAfter", type: "uint256" },
-                { name: "validBefore", type: "uint256" },
-                { name: "nonce", type: "bytes32" },
+                { name: 'from', type: 'address' },
+                { name: 'to', type: 'address' },
+                { name: 'value', type: 'uint256' },
+                { name: 'validAfter', type: 'uint256' },
+                { name: 'validBefore', type: 'uint256' },
+                { name: 'nonce', type: 'bytes32' },
               ],
             },
-            primaryType: "TransferWithAuthorization",
+            primaryType: 'TransferWithAuthorization',
             message: {
               from: payload.from as Address,
               to: payload.to as Address,
@@ -168,15 +157,12 @@ export function charge(
             signature: payload.signature as Hex,
           });
 
-          if (!signatureValid)
-            throw new Error(`Invalid signature provided by client`);
+          if (!signatureValid) throw new Error(`Invalid signature provided by client`);
 
           const parsedSig = parseSignature(payload.signature as Hex);
 
           if (parsedSig.v == undefined) {
-            throw new Error(
-              `Signature given in shorthand format via EIP 2098 is invalid`,
-            );
+            throw new Error(`Signature given in shorthand format via EIP 2098 is invalid`);
           }
 
           const transactionInfo = {
@@ -185,7 +171,7 @@ export function charge(
             to: request.currency as Hex,
             data: encodeFunctionData({
               abi: defaults.erc3009Abi,
-              functionName: "transferWithAuthorization",
+              functionName: 'transferWithAuthorization',
               args: [
                 payload.from as Address,
                 payload.to as Address,
@@ -204,16 +190,13 @@ export function charge(
           try {
             await call(client, transactionInfo);
           } catch (err) {
-            throw new Error("Transaction simulation (eth_call) failed", {
+            throw new Error('Transaction simulation (eth_call) failed', {
               cause: err,
             });
           }
 
           // Submit transaction
-          const transactionHash = await sendTransaction(
-            client,
-            transactionInfo,
-          );
+          const transactionHash = await sendTransaction(client, transactionInfo);
           const receipt = await waitForTransactionReceipt(client, {
             hash: transactionHash,
           });
@@ -221,17 +204,16 @@ export function charge(
           // Check emitted logs for transfer and make sure the params are expected
           const parsedLogs = parseEventLogs({
             abi: erc20Abi,
-            eventName: "Transfer",
+            eventName: 'Transfer',
             logs: receipt.logs,
           });
 
           if (parsedLogs[0] === undefined) {
-            throw new Error("No transfer logs found");
+            throw new Error('No transfer logs found');
           }
 
           if (
-            parsedLogs[0].args.from.toLowerCase() !==
-              payload.from.toLowerCase() ||
+            parsedLogs[0].args.from.toLowerCase() !== payload.from.toLowerCase() ||
             parsedLogs[0].args.to.toLowerCase() !== payload.to.toLowerCase() ||
             parsedLogs[0].args.value.toString() !== payload.value
           ) {
@@ -245,32 +227,28 @@ export function charge(
           }
           return toReceipt(receipt);
         }
-        case "transaction": {
+        case 'transaction': {
           // TODO: maybe implement transaction
         }
-        case "hash": {
+        case 'hash': {
           // TODO: maybe implement hash
         }
         default: {
-          throw new Error(
-            `Arbitrum MPP does not support given credential type: ${payload.type}`,
-          );
+          throw new Error(`Arbitrum MPP does not support given credential type: ${payload.type}`);
         }
       }
       // This is only here to avoid error from verify() func
-      throw new Error(
-        `Arbitrum MPP does not support given credential type: ${payload.type}`,
-      );
+      throw new Error(`Arbitrum MPP does not support given credential type: ${payload.type}`);
     },
   });
 }
 
 function toReceipt(receipt: TransactionReceipt) {
-  if (receipt.status != "success")
+  if (receipt.status != 'success')
     throw new Error(`Transaction reverted: ${receipt.transactionHash}`);
   return {
-    method: "arbitrum" as const,
-    status: "success" as const,
+    method: 'arbitrum' as const,
+    status: 'success' as const,
     timestamp: new Date().toISOString(),
     reference: receipt.transactionHash,
   };

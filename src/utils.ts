@@ -1,10 +1,8 @@
-import type { Client, Chain } from "viem";
-import * as defaults from "./default.js";
-import { createClient, http } from "viem";
+import type { Client, Chain } from 'viem';
+import * as defaults from './default.js';
+import { createClient, http } from 'viem';
 
-export function resolveClients(
-  rpcUrls: Map<number, string> | undefined,
-): Map<number, Client> {
+export function resolveClients(rpcUrls: Map<number, string> | undefined): Map<number, Client> {
   const clientsMap = new Map<number, Client>();
   if (rpcUrls === undefined) {
     const arbSepoliaClient = createClient({
