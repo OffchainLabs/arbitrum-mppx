@@ -103,7 +103,6 @@ export function charge(parameters: ChargeParameters): Method.Server<typeof Metho
 			// Different verifications for different types
 			switch (payload.type) {
 				case "permit2": {
-					payload as defaults.Permit2Payload
 
 					const { transferDetails } = payload;
 					const { permitted, nonce, deadline } = payload.permit;
@@ -214,8 +213,7 @@ export function charge(parameters: ChargeParameters): Method.Server<typeof Metho
 						}
 						// Since the primary recipient is pushed to the front of the array and is not included 
 						// in splits. Splits needs to lag behind by 1.
-						for (let i = 1; i < permitted.length; i++) {
-							const p = permitted[i];
+						for (const [i, p] of permitted.entries()) {
 							const t = transferDetails[i];
 							const s = splits[i - 1];
 							if (p === undefined || t === undefined) {
@@ -229,11 +227,11 @@ export function charge(parameters: ChargeParameters): Method.Server<typeof Metho
 								throw new Error(`permitted and transferDetails have unequal amount values.
 									permitted: ${p.amount} transferDetails: ${t.requestedAmount}`);
 							}
-							if (p.token !== currency) {
+							if (p.token.toLowerCase() !== currency?.toLowerCase()) {
 								throw new Error(`Permitted token address is not equal to request token address.
 									permitted: ${p.token} request: ${currency}`);
 							}
-							if (t.to !== s.recipient) {
+							if (t.to.toLowerCase() !== s.recipient.toLowerCase()) {
 								throw new Error(`transferDetails recipient is not equal to splits recipient
 									transferDetails recipient ${t.to} splits recipient: ${s.recipient}`);
 							}
@@ -264,6 +262,7 @@ export function charge(parameters: ChargeParameters): Method.Server<typeof Metho
 					);
 
 					// just like last time different encodings depending on if splits is present
+					// tried to make this nicer with   ? :   but doesnt seem to work with the abis
 					let transactionInfo;
 					if (splits === undefined) {
 						transactionInfo = {
@@ -344,14 +343,14 @@ export function charge(parameters: ChargeParameters): Method.Server<typeof Metho
 						throw new Error(`total transfer logs is not equal to transferDetails array
 							transfer log num: ${parsedLogs.length} transferDetails array length: ${transferDetails.length}`)
 					}
-					for (let i = 0; i < parsedLogs.length; i++) {
-						if (parsedLogs[i]?.args.to !== transferDetails[i]?.to) {
+					for (const [i, parsedLog] of parsedLogs.entries()) {
+						if (parsedLog?.args.to.toLowerCase() !== transferDetails[i]?.to.toLowerCase()) {
 							throw new Error(`emitted logs recipient does not match transferDetails recipient
-								log: ${parsedLogs[i]?.args.to} transferDetails: ${transferDetails[i]?.to}`)
+								log: ${parsedLog?.args.to} transferDetails: ${transferDetails[i]?.to}`)
 						}
-						if (parsedLogs[i]?.args.value.toString() !== transferDetails[i]?.requestedAmount) {
+						if (parsedLog?.args.value.toString() !== transferDetails[i]?.requestedAmount) {
 							throw new Error(`emitted logs value does not match transferDetails value
-								log: ${parsedLogs[i]?.args.value} transferDetails: ${transferDetails[i]?.requestedAmount}`);
+								log: ${parsedLog?.args.value} transferDetails: ${transferDetails[i]?.requestedAmount}`);
 						}
 					}
 
