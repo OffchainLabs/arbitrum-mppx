@@ -38,5 +38,13 @@ export const ANVIL_TEST_ACCOUNTS = {
   splits1: {
     address: "0xbe42916AA0CD2Ecc7358Be03E59d4B35fd2CB1e8" as const,
     privateKey: "0xa56ca1b4b7f63ecab0f1222e5cbcc847cf471c2b974a88cb69dc760a461e82ec" as const,
+  },
+  splits2: {
+    address: "0x677C808f267C5f9477f120c28b57135Ff6a5B856",
+    privateKey: "0x358eb6cb1c388fd03cbc55bb8bf794df034174f9da93978efe8281d97fe4357d"
+  },
+  splits3: {
+    address: "0x828DA46e6c8552FE0A43aa9756ed1Bc3172bc139",
+    privateKey: "189e7f02112025a0b340f056d2c4cbceda03330158fbb26885f0ab8e48743801"
   }
 } as const;
