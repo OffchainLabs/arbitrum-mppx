@@ -214,8 +214,9 @@ export function charge(parameters: ChargeParameters): Method.Server<typeof Metho
 								splits length: ${splits.length}`)
 						}
 						// Since the primary recipient is pushed to the front of the array and is not included 
-						// in splits. Splits needs to lag behind by 1.
+						// in splits. Splits needs to lag behind by 1. which is also why we skip when i == 0
 						for (const [i, p] of permitted.entries()) {
+							if (i == 0) continue;
 							const t = transferDetails[i];
 							const s = splits[i - 1];
 							if (p === undefined || t === undefined) {
