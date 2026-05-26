@@ -106,10 +106,25 @@ async function decodeResponse(response: Response) {
   }
   // I believe the general pattern is that the test will determine if data is missing
   // so I will not throw and error if info is undefined
-  
+
   const decodedPaymentReceipt = JSON.parse(
     Buffer.from(paymentReceipt ?? "", 'base64').toString('utf8'));
   return { data, decodedPaymentReceipt }
+}
+// any is bad but im not sure how to give it the correct type
+// this just makes it so the process of rawFetch and getting the proper credential is much easier
+// createCredential still exists and is not just a part of this function incase we need it
+async function rawFetchAndMakeDecodedCredential<T>(clientMppx: MppxClient.Mppx, fetchEndpoint: string):
+  Promise<{ challenge: unknown, payload: T, source?: string }> {
+  const response = await clientMppx.rawFetch(fetchEndpoint);
+  const encodedCredential = await clientMppx.createCredential(response);
+  return encodedCredentialToJson(encodedCredential);
+}
+
+async function encodeAndSendCredential(clientMppx: MppxClient.Mppx, jsonCredential: any, fetchEndpoint: string) {
+  const reEncodedCredential = jsonToEncodedCredential(jsonCredential);
+  const init = clientMppx.transport.setCredential({}, reEncodedCredential);
+  return await clientMppx.rawFetch(fetchEndpoint, init);
 }
 
 // Both functions below are for manually editing the credential to make sure the server is
@@ -118,7 +133,7 @@ function encodedCredentialToJson(encodedCredential: string) {
   // the string "Payment " is at the beginning of the encoded credential and is not part of the 
   // encoding, so it needs to be removed so the encoding works properly
   const SLICE_INDEX = "Payment ".length
-  const strippedCredential  = encodedCredential.slice(SLICE_INDEX);
+  const strippedCredential = encodedCredential.slice(SLICE_INDEX);
   return JSON.parse(Buffer.from(strippedCredential, 'base64').toString('utf-8'));
 }
 
@@ -239,7 +254,7 @@ describe("e2e: Authorization", async () => {
     })
   })
   afterAll(async () => {
-    anvilTestClient.reset({jsonRpcUrl: ANVIL_RPC_URL});
+    anvilTestClient.reset({ jsonRpcUrl: ANVIL_RPC_URL });
   })
 
   it("Succeeds and gets data", async () => {
@@ -249,23 +264,17 @@ describe("e2e: Authorization", async () => {
     expect(decodedPaymentReceipt['status']).toEqual('success');
     expect(decodedPaymentReceipt['method']).toEqual('arbitrum');
   })
-  
+
   it("decode and encode makes successful payment", async () => {
     // This is more of a sanity check to make sure that this process results in a successful 
-    // payment, so we can edit the credential knowing that it will fail when it should
-    const response = await clientMppx.rawFetch(FETCH_ENDPOINT);
-    
-    const encodedCredential = await clientMppx.createCredential(response);
-    
-    const jsonCredential = encodedCredentialToJson(encodedCredential);
+    // payment, so we can edit the credential knowing that if it fails its not due to this process
+    let jsonCredential = await
+      rawFetchAndMakeDecodedCredential<defaults.AuthorizationPayload>(clientMppx, FETCH_ENDPOINT);
 
-    const reEncodedCredential = jsonToEncodedCredential(jsonCredential);
+    const response = await encodeAndSendCredential(clientMppx, jsonCredential, FETCH_ENDPOINT);
 
-    const init = clientMppx.transport.setCredential({}, reEncodedCredential);
+    const { data, decodedPaymentReceipt } = await decodeResponse(response)
 
-    const { data, decodedPaymentReceipt } = await decodeResponse(
-      await clientMppx.rawFetch(FETCH_ENDPOINT, init));
-    
     expect(data['data']).toEqual(DATA);
     expect(decodedPaymentReceipt['status']).toEqual('success');
     expect(decodedPaymentReceipt['method']).toEqual('arbitrum');
@@ -273,12 +282,23 @@ describe("e2e: Authorization", async () => {
 
 
   it("Fails with invalid signature", async () => {
-    // gotta figure out the best way to manipulate the credential
-    const response = await clientMppx.rawFetch(FETCH_ENDPOINT);
-    const encodedCredential = await clientMppx.createCredential(response);
-    let jsonCredential = encodedCredentialToJson(encodedCredential) as defaults.AuthorizationPayload;
-    // make sig invalud
-    jsonCredential.signature = `${jsonCredential.signature}1`;
+    let jsonCredential = await
+      rawFetchAndMakeDecodedCredential<defaults.AuthorizationPayload>(clientMppx, FETCH_ENDPOINT);
+    // invalidate sig (must be same length or else a different check fails before signature validation)
+    jsonCredential.payload.signature = "0x7c3a9f8e4b2d1e6f5a8c9b0d3e7f2a4c6b8d1e3f5a7c9b2d4e6f8a0c2b4d6e8f1a3c5e7f9b1d3e5f7a9c1b3d5e7f9a2c4b6d8e0f3a5c7b9d1e3f5a7c9b2d4e6f1b";
+    const returnVal = await encodeAndSendCredential(clientMppx, jsonCredential, FETCH_ENDPOINT)
+    expect(returnVal.status).toBe(402);
+    expect(returnVal.headers.get("payment-receipt")).toBeNull();
+  })
+
+  it("Fails with invalid amount", async () => {
+    let jsonCredential = await
+      rawFetchAndMakeDecodedCredential<defaults.AuthorizationPayload>(clientMppx, FETCH_ENDPOINT);
+    const falseValue = BigInt(jsonCredential.payload.value) / BigInt(2);
+    jsonCredential.payload.value = falseValue.toString();
+    const returnVal = await encodeAndSendCredential(clientMppx, jsonCredential, FETCH_ENDPOINT);
+    expect(returnVal.status).toBe(402);
+    expect(returnVal.headers.get("payment-receipt")).toBeNull();
   })
 })
 
