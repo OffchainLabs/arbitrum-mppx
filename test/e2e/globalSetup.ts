@@ -1,10 +1,3 @@
-/**
- * Vitest global setup: boot a single anvil node for the whole test run.
- *
- * We use `@viem/anvil`'s pool so individual tests *could* later request
- * isolated forks via instance ids; for now there is just one shared node.
- */
-
 import { createAnvil } from "@viem/anvil";
 import { ANVIL_HOST, ANVIL_PORT, FORK_URL } from "./anvil.js";
 
