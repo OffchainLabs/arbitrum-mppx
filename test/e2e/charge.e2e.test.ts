@@ -234,6 +234,7 @@ describe("e2e Permit2", async () => {
   const NO_SPLIT_ENDPOINT = 'permit2NoSplit';
   const THREE_SPLIT_ENDPOINT = 'permit2ThreeSplit';
   const SPLIT_DATA = 'split permit2 e2e test worked!';
+  const THREE_SPLIT_DATA = 'split permit2 with splits length 3 e2e test worked!';
   const NO_SPLIT_DATA = 'no split permit2 e2e test worked!';
   const SPLIT_FETCH_ENDPOINT = `http://${ANVIL_HOST}:${PORT}/${SPLIT_ENDPOINT}`;
   const NO_SPLIT_FETCH_ENDPOINT = `http://${ANVIL_HOST}:${PORT}/${NO_SPLIT_ENDPOINT}`;
@@ -304,7 +305,7 @@ describe("e2e Permit2", async () => {
         }]
       }
     }),
-    (req, res) => res.json({ data: SPLIT_DATA })
+    (req, res) => res.json({ data: THREE_SPLIT_DATA })
   );
 
   const clientMppx = MppxClient.create({
@@ -358,9 +359,9 @@ describe("e2e Permit2", async () => {
   })
 
   it("Succeeds with splits length 3", async () => {
-    const returnVal = await clientMppx.fetch(SPLIT_FETCH_ENDPOINT);
+    const returnVal = await clientMppx.fetch(THREE_SPLIT_FETCH_ENDPOINT);
     const { data, decodedPaymentReceipt } = await decodeResponse(returnVal);
-    expect(data["data"]).toEqual(SPLIT_DATA);
+    expect(data["data"]).toEqual(THREE_SPLIT_DATA);
     expect(decodedPaymentReceipt['status']).toEqual('success');
     expect(decodedPaymentReceipt['method']).toEqual('arbitrum');
   })
