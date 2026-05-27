@@ -2,7 +2,7 @@ import { Mppx } from 'mppx/client'
 import { charge } from '../src/client/index.js';
 import { config } from 'dotenv';
 import { privateKeyToAccount } from 'viem/accounts';
-import { exit } from 'node:process';
+
 config();
 
 if (process.env.CLIENT_PRIVATE_KEY == undefined) {
