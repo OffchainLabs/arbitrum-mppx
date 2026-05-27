@@ -196,13 +196,12 @@ export function charge(parameters: ChargeParameters): Method.Server<typeof Metho
 							Permitted length: ${permitted.length} transferDetails length: ${transferDetails.length}`);
 					}
 
-					let requestSum = BigInt(0);
 					if (splits === undefined) {
 						verifyPrimaryRecipient(
 							permitted,
 							transferDetails,
 							request.currency as Address,
-							requestSum,
+							0n,
 							request.amount,
 							request.recipient
 						)
@@ -213,32 +212,37 @@ export function charge(parameters: ChargeParameters): Method.Server<typeof Metho
 								permitted/transferDetails length: ${permitted.length} 
 								splits length: ${splits.length}`)
 						}
+						let requestSum = BigInt(0);
 						// Since the primary recipient is pushed to the front of the array and is not included 
 						// in splits. Splits needs to lag behind by 1. which is also why we skip when i == 0
-						for (const [i, p] of permitted.entries()) {
-							if (i == 0) continue;
-							const t = transferDetails[i];
-							const s = splits[i - 1];
-							if (p === undefined || t === undefined) {
+						const splitPayments = permitted.slice(1).map((p, offset) => ({
+							index: offset + 1,
+							permittedItem: p,
+							transferDetail: transferDetails[offset + 1],
+							split: splits[offset],
+						}));
+
+						for (const { index, permittedItem, transferDetail, split } of splitPayments) {
+							if (permittedItem === undefined || transferDetail === undefined) {
 								throw new Error(`permitted or transferDetails at 
-									index ${i} is undefined. permitted: ${p} transferDetails: ${t}`);
+									index ${index} is undefined. permitted: ${permittedItem} transferDetails: ${transferDetail}`);
 							}
-							if (s === undefined) {
-								throw new Error(`splits at index ${i - 1} is undefined`);
+							if (split === undefined) {
+								throw new Error(`splits at index ${index - 1} is undefined`);
 							}
-							if (p.amount !== t.requestedAmount) {
+							if (permittedItem.amount !== transferDetail.requestedAmount) {
 								throw new Error(`permitted and transferDetails have unequal amount values.
-									permitted: ${p.amount} transferDetails: ${t.requestedAmount}`);
+									permitted: ${permittedItem.amount} transferDetails: ${transferDetail.requestedAmount}`);
 							}
-							if (p.token.toLowerCase() !== currency?.toLowerCase()) {
+							if (permittedItem.token.toLowerCase() !== currency?.toLowerCase()) {
 								throw new Error(`Permitted token address is not equal to request token address.
-									permitted: ${p.token} request: ${currency}`);
+									permitted: ${permittedItem.token} request: ${currency}`);
 							}
-							if (t.to.toLowerCase() !== s.recipient.toLowerCase()) {
+							if (transferDetail.to.toLowerCase() !== split.recipient.toLowerCase()) {
 								throw new Error(`transferDetails recipient is not equal to splits recipient
-									transferDetails recipient ${t.to} splits recipient: ${s.recipient}`);
+									transferDetails recipient ${transferDetail.to} splits recipient: ${split.recipient}`);
 							}
-							requestSum += BigInt(t.requestedAmount)
+							requestSum += BigInt(transferDetail.requestedAmount)
 						}
 						// final check to make sure the primary recipient is getting paid the correct amount 
 						verifyPrimaryRecipient(
