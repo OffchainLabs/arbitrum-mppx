@@ -21,7 +21,6 @@ function createChallengeHash(id: string, realm: string): `0x${string}` {
   ))
 }
 
-
 export function charge(parameters: ChargeParameters): Method.Client<typeof Methods.arbitrumCharge> {
 
   const { rpcUrls } = parameters;
