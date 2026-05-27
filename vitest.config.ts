@@ -9,5 +9,8 @@ export default defineConfig({
     hookTimeout: 60_000,
     // Globals from the e2e setup (anvil pool, fork URL, port) live here.
     globalSetup: ["./test/e2e/globalSetup.ts"],
+    // Test sometimes fail since they are using the same chain and same addresses due to
+    // Changing the seeded USDC values and such, so files must not run in parallel
+    fileParallelism: false
   },
 });
