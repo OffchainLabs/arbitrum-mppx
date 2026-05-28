@@ -5,6 +5,7 @@ import { config } from 'dotenv';
 import * as defaults from "../src/default.js"
 import { privateKeyToAccount } from 'viem/accounts';
 import type { Hex } from 'viem';
+import { server } from 'typescript';
 const PORT = 3000;
 
 config()
@@ -19,6 +20,8 @@ const app = express()
 if (process.env.SERVER_PRIVATE_KEY == undefined) throw new Error(`Server private key required`);
 
 const account = privateKeyToAccount(process.env.SERVER_PRIVATE_KEY as Hex)
+
+console.log(account.address);
 
 const mppx = Mppx.create({
   methods: [charge({
@@ -81,7 +84,6 @@ app.get(
         recipient: "0xB022b539C3bB7a1E6Cc73F6e78d3B4c39b73b0d3",
         amount: "100",
         memo: "This emits third"
-
       }]
     }
   }),

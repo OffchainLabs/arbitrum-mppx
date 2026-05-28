@@ -15,7 +15,7 @@ import {
 } from "viem";
 import type { Address, Hex, Account, TransactionReceipt } from "viem"
 import { sendTransaction, waitForTransactionReceipt, readContract, call } from "viem/actions"
-import { resolveClients, buildPermit2TypedData } from "../utils.js";
+import { resolveClients, buildPermit2TypedData, createChallengeHash } from "../utils.js";
 
 export type ChargeParameters = {
 	amount?: string | undefined,
@@ -79,6 +79,8 @@ export function charge(parameters: ChargeParameters): Method.Server<typeof Metho
 				source
 			} = credential;
 
+			const { id, realm } = challenge;
+
 			const { methodDetails, recipient } = request
 
 			const {
@@ -103,6 +105,12 @@ export function charge(parameters: ChargeParameters): Method.Server<typeof Metho
 			// Different verifications for different types
 			switch (payload.type) {
 				case "permit2": {
+
+					if (request.methodDetails.credentialTypes !== undefined &&
+						request.methodDetails.credentialTypes.find((type) => type === "permit2") === undefined) {
+						throw new Error(`permit2 is not a valid credentialType given in the request,
+							given types ${request.methodDetails.credentialTypes}`)
+					}
 
 					const { transferDetails } = payload;
 					const { permitted, nonce, deadline } = payload.permit;
@@ -134,7 +142,7 @@ export function charge(parameters: ChargeParameters): Method.Server<typeof Metho
 					const typedData = buildPermit2TypedData({
 						chainId: chainId,
 						permitted: permitted,
-						recipient: recipient,
+						recipient: recipient as Address,
 						Witness: payload.witness,
 						nonce: BigInt(nonce),
 						deadline: BigInt(deadline)
@@ -150,10 +158,7 @@ export function charge(parameters: ChargeParameters): Method.Server<typeof Metho
 						throw new Error("Client signature is invalid")
 					}
 
-					const challengeHash = keccak256(encodePacked(
-						defaults.CHALLENGE_HASH_ABI,
-						[challenge.id, challenge.realm]
-					))
+					const challengeHash = createChallengeHash({ id, realm, transferDetails });
 
 					if (challengeHash != payload.witness.challengeHash) {
 						throw new Error(`Client challengeHash is not equal to actual challengeHash`);
@@ -373,6 +378,10 @@ export function charge(parameters: ChargeParameters): Method.Server<typeof Metho
 						nonce: string;
 						signature: string;
 					}
+					if (methodDetails.credentialTypes?.find((type) => type === "authorization") === undefined) {
+						throw new Error(`type authorization was not available for this request. Given types: 
+							${methodDetails.credentialTypes}`)
+					}
 
 					if (payload.to != request.recipient) throw new Error(`Client payload sending to incorrect address: 
 							${payload.to} Should be ${request.recipient}`);
@@ -380,10 +389,7 @@ export function charge(parameters: ChargeParameters): Method.Server<typeof Metho
 					if (payload.value != request.amount) throw new Error(`Client payload value is incorrect. 
 							payload value: ${payload.value} Should be ${request.amount}`);
 
-					const hashedNonce = keccak256(encodePacked(
-						defaults.CHALLENGE_HASH_ABI,
-						[challenge.id, challenge.realm]
-					))
+					const hashedNonce = createChallengeHash({ id, realm });
 
 					if (payload.to.toLowerCase() !== request.recipient.toLowerCase()) throw new Error(`Client payload sending to incorrect address: 
 				${payload.to} Should be ${request.recipient}`);

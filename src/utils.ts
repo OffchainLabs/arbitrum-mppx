@@ -1,6 +1,6 @@
 import type { Client, Chain, Address, Hex } from "viem";
 import * as defaults from "./default.js";
-import { createClient, http } from "viem";
+import { createClient, http, keccak256, encodePacked } from "viem";
 
 export function resolveClients(
   rpcUrls: Map<number, string> | undefined
@@ -75,4 +75,24 @@ export function buildPermit2TypedData(params: {
   };
 
   return typedData;
+}
+
+export function createChallengeHash(params: {
+  id: string,
+  realm: string,
+  transferDetails?: Array<{ to: string, requestedAmount: string }>
+}): Hex {
+  const { id, realm, transferDetails } = params;
+  if (transferDetails === undefined) {
+    return keccak256(encodePacked(
+      ['string', 'string'],
+      [id, realm]
+    ))
+  }
+  const tos = transferDetails.map(td => td.to);
+  const amounts = transferDetails.map(td => BigInt(td.requestedAmount));
+  return keccak256(encodePacked(
+    ['string', 'string', 'string[]', 'uint256[]'],
+    [id, realm, tos, amounts]
+  ))
 }

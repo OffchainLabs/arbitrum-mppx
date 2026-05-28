@@ -1,11 +1,10 @@
 import { Method, Credential } from "mppx"
 import * as Methods from "../Methods.js"
-import { keccak256, erc20Abi } from "viem"
-import type { Account, Address } from "viem"
+import { erc20Abi } from "viem"
+import type { Account, Address, Hex } from "viem"
 import { signTypedData, readContract } from "viem/actions"
 import * as defaults from "../default.js"
-import { encodePacked } from "viem"
-import { resolveClients, buildPermit2TypedData } from "../utils.js"
+import { resolveClients, buildPermit2TypedData, createChallengeHash } from "../utils.js"
 
 
 export type ChargeParameters = {
@@ -13,14 +12,6 @@ export type ChargeParameters = {
   chainId: number
   rpcUrls?: Map<number, string>
 }
-
-function createChallengeHash(id: string, realm: string): `0x${string}` {
-  return keccak256(encodePacked(
-    defaults.CHALLENGE_HASH_ABI,
-    [id, realm]
-  ))
-}
-
 
 export function charge(parameters: ChargeParameters): Method.Client<typeof Methods.arbitrumCharge> {
 
@@ -31,7 +22,7 @@ export function charge(parameters: ChargeParameters): Method.Client<typeof Metho
   return Method.toClient(Methods.arbitrumCharge, {
 
     async createCredential({ challenge }) {
-      const { request, expires } = challenge
+      const { request, expires, id, realm } = challenge
       const { account } = parameters
 
       const amount = BigInt(request.amount);
@@ -74,10 +65,6 @@ export function charge(parameters: ChargeParameters): Method.Client<typeof Metho
        * the spec and require credentialTypes always since I see no reason in making it an assumption
        */
       if (credentialTypes?.includes("permit2") || credentialTypes === undefined) {
-        // The spec mentions EIP-712 witness stuff but I think the AI that wrote it is hallucinating a bit
-        // Its actually Uniswaps permit 2 that requires a signed witness value, EIP-712 is just the ordering
-        const challengeHashWitness = createChallengeHash(challenge.id, challenge.realm);
-        const nonce = BigInt(challengeHashWitness);
 
         let sum = BigInt(0);
         const permitted: Array<{ token: Address, amount: string }> = [];
@@ -104,6 +91,9 @@ export function charge(parameters: ChargeParameters): Method.Client<typeof Metho
         const primaryRecipientAmount = (amount - BigInt(sum)).toString();
         permitted.unshift({ token: currency, amount: primaryRecipientAmount })
         transferDetails.unshift({ to: recipient, requestedAmount: primaryRecipientAmount })
+
+        const challengeHashWitness = createChallengeHash({ id, realm, transferDetails });
+        const nonce = BigInt(challengeHashWitness);
 
         const deadline = challenge.expires
           ? BigInt(Math.floor(new Date(challenge.expires).getTime() / 1000))
@@ -154,7 +144,7 @@ export function charge(parameters: ChargeParameters): Method.Client<typeof Metho
         }
 
         // Nonce is given hashed challenge info as a form of challenge binding
-        const nonce = createChallengeHash(challenge.id, challenge.realm);
+        const nonce = createChallengeHash({ id, realm });
 
         /**
          * We may want to deviate from the spec and always require a challenge expiry 

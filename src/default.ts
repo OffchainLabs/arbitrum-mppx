@@ -19,8 +19,6 @@ export const rpcUrl: Record<number, string> = {
   [chainId.arbitrumSepolia]: "https://sepolia-rollup.arbitrum.io/rpc",
 };
 
-export const CHALLENGE_HASH_ABI = ['string', 'string'] as const
-
 export const erc3009Abi = [
   {
     type: "function",
