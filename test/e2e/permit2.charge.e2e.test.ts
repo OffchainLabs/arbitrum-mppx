@@ -32,12 +32,15 @@ describe("e2e Permit2", async () => {
   const SPLIT_ENDPOINT = 'permit2Split';
   const NO_SPLIT_ENDPOINT = 'permit2NoSplit';
   const THREE_SPLIT_ENDPOINT = 'permit2ThreeSplit';
+  const EQUAL_SPLIT_ENDPOINT = 'permit2EqualSplit';
   const SPLIT_DATA = 'split permit2 e2e test worked!';
   const THREE_SPLIT_DATA = 'split permit2 with splits length 3 e2e test worked!';
   const NO_SPLIT_DATA = 'no split permit2 e2e test worked!';
+  const EQUAL_SPLIT_DATA = 'equal split permit2 e2e test worked!';
   const SPLIT_FETCH_ENDPOINT = `http://${ANVIL_HOST}:${PORT}/${SPLIT_ENDPOINT}`;
   const NO_SPLIT_FETCH_ENDPOINT = `http://${ANVIL_HOST}:${PORT}/${NO_SPLIT_ENDPOINT}`;
   const THREE_SPLIT_FETCH_ENDPOINT = `http://${ANVIL_HOST}:${PORT}/${THREE_SPLIT_ENDPOINT}`;
+  const EQUAL_SPLITS_FETCH_ENDPOINT = `http://${ANVIL_HOST}:${PORT}/${EQUAL_SPLIT_ENDPOINT}`;
   let server: Server;
 
   const serverMppx = await mppServerSetup({
@@ -106,7 +109,28 @@ describe("e2e Permit2", async () => {
     }),
     (req, res) => res.json({ data: THREE_SPLIT_DATA })
   );
-
+  app.get(
+    `/${EQUAL_SPLIT_ENDPOINT}`,
+    //@ts-ignore
+    serverMppx.charge({
+      amount: '1500',
+      description: "permit2 splits description",
+      methodDetails: {
+        chainId: ANVIL_CHAIN_ID,
+        permit2Address: defaults.PERMIT2_ADDRESS,
+        credentialTypes: ["permit2"],
+        splits: [{
+          recipient: ANVIL_TEST_ACCOUNTS.splits1.address,
+          amount: "500"
+        },
+        {
+          recipient: ANVIL_TEST_ACCOUNTS.splits2.address,
+          amount: "500"
+        }]
+      }
+    }),
+    (req, res) => res.json({ data: EQUAL_SPLIT_DATA })
+  );
   const clientMppx = MppxClient.create({
     methods: [chargeClient({
       account: clientAccount,
