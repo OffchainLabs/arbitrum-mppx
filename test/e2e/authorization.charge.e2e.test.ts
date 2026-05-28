@@ -5,19 +5,19 @@ import { charge as chargeClient } from '../../src/client/index.js';
 import * as defaults from '../../src/default.js';
 import express from 'express'
 import { Server } from "node:http";
-import { 
-  fundAccounts, 
-  mppServerSetup, 
-  seedUsdc, 
-  decodeResponse, 
+import {
+  fundAccounts,
+  mppServerSetup,
+  seedUsdc,
+  decodeResponse,
   rawFetchAndMakeDecodedCredential,
   encodeAndSendCredential,
   resignAuthorizationCredential
 } from "./utils.e2e.js"
 import {
-  clientAccount, 
-  serverAccount, 
-  anvilPublicClient, 
+  clientAccount,
+  serverAccount,
+  anvilPublicClient,
   anvilTestClient,
   USDC_DEFAULT_SEEDED,
 } from "./default.e2e.js"

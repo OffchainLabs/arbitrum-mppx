@@ -5,23 +5,26 @@ import { charge as chargeClient } from '../../src/client/index.js';
 import * as defaults from '../../src/default.js';
 import express from 'express'
 import { Server } from "node:http";
-import { 
-  fundAccounts, 
-  mppServerSetup, 
-  seedUsdc, 
-  seedUsdcAllowance, 
-  decodeResponse, 
+import { createChallengeHash } from '../../src/utils.js';
+import {
+  fundAccounts,
+  mppServerSetup,
+  seedUsdc,
+  seedUsdcAllowance,
+  decodeResponse,
   rawFetchAndMakeDecodedCredential,
   encodeAndSendCredential,
-  resignPermit2Credential
+  resignPermit2Credential,
+  encodedCredentialToJson
 } from "./utils.e2e.js"
 import {
-  clientAccount, 
-  serverAccount, 
-  anvilPublicClient, 
+  clientAccount,
+  serverAccount,
+  anvilPublicClient,
   anvilTestClient,
   USDC_DEFAULT_SEEDED,
 } from "./default.e2e.js"
+
 const rpcMapping = new Map<number, string>();
 
 rpcMapping.set(ANVIL_CHAIN_ID, ANVIL_RPC_URL);
@@ -629,6 +632,34 @@ describe("e2e Permit2", async () => {
 
     (jsonCredential.challenge as { id: string }).id = "tampered-challenge-id";
     const returnVal = await encodeAndSendCredential(clientMppx, jsonCredential, NO_SPLIT_FETCH_ENDPOINT);
+    expect(returnVal.status).toBe(402);
+    expect(returnVal.headers.get("payment-receipt")).toBeNull();
+  })
+  it("Fails when TD is tampered, resgined, and witness hash is tampered with TD", async () => {
+    // Need to fetch manually since we need the challenge realm and ID
+    const response = await clientMppx.rawFetch(THREE_SPLIT_FETCH_ENDPOINT);
+    const challenge = clientMppx.transport.getChallenge(response);
+    const { id, realm } = challenge;
+    const encodedCredential = await clientMppx.createCredential(response);
+
+    let jsonCredential = encodedCredentialToJson(encodedCredential);
+
+    const permitted = jsonCredential.payload.permit.permitted;
+    const tDetails = jsonCredential.payload.transferDetails;
+    [permitted[1], permitted[2]] = [permitted[2]!, permitted[1]!];
+    [tDetails[1], tDetails[2]] = [tDetails[2]!, tDetails[1]!];
+
+    jsonCredential.payload.witness.challengeHash = createChallengeHash({
+      id,
+      realm,
+      transferDetails: tDetails
+    })
+    await resignPermit2Credential(jsonCredential, {
+      recipient: serverAccount.address,
+      chainId: ANVIL_CHAIN_ID,
+      signer: clientAccount
+    })
+    const returnVal = await encodeAndSendCredential(clientMppx, jsonCredential, THREE_SPLIT_FETCH_ENDPOINT);
     expect(returnVal.status).toBe(402);
     expect(returnVal.headers.get("payment-receipt")).toBeNull();
   })
