@@ -5,7 +5,6 @@ import { config } from 'dotenv';
 import * as defaults from "../src/default.js"
 import { privateKeyToAccount } from 'viem/accounts';
 import type { Hex } from 'viem';
-import { server } from 'typescript';
 const PORT = 3000;
 
 config()
