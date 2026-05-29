@@ -42,8 +42,8 @@ export const arbitrumCharge = Method.from({
             nonce: z.string(),
             deadline: z.string()
           }),
-          transderDetails: z.array(z.object({ to: z.string(), requestedAmount: z.string() })),
-          witness: z.object({ challengeHash: z.bigint() }),
+          transferDetails: z.array(z.object({ to: z.string(), requestedAmount: z.string() })),
+          witness: z.object({ challengeHash: z.string() }),
           signature: z.string()
         }),
         z.object({

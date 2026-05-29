@@ -1,11 +1,10 @@
 import { Method, Credential } from "mppx"
 import * as Methods from "../Methods.js"
-import { keccak256, erc20Abi } from "viem"
-import type { Account, Address } from "viem"
+import { erc20Abi } from "viem"
+import type { Account, Address, Hex } from "viem"
 import { signTypedData, readContract } from "viem/actions"
 import * as defaults from "../default.js"
-import { encodePacked } from "viem"
-import { resolveClients } from "../utils.js"
+import { resolveClients, buildPermit2TypedData, createChallengeHash } from "../utils.js"
 
 
 export type ChargeParameters = {
@@ -15,29 +14,29 @@ export type ChargeParameters = {
 }
 
 export function charge(parameters: ChargeParameters): Method.Client<typeof Methods.arbitrumCharge> {
-  
+
   const { rpcUrls } = parameters;
 
   const clientsMap = resolveClients(rpcUrls)
 
   return Method.toClient(Methods.arbitrumCharge, {
-    
+
     async createCredential({ challenge }) {
-      const { request, expires } = challenge
+      const { request, expires, id, realm } = challenge
       const { account } = parameters
-      
+
       const amount = BigInt(request.amount);
       const currency = request.currency as Address;
       const recipient = request.recipient as Address;
-      
+
       const { methodDetails } = request;
-      
+
       const {
         chainId,
         credentialTypes,
         splits,
       } = methodDetails
-      
+
       const client = clientsMap.get(chainId);
 
       if (chainId !== client?.chain?.id) {
@@ -65,20 +64,87 @@ export function charge(parameters: ChargeParameters): Method.Client<typeof Metho
        * if credentialTypes is undefined, it assumes transaction is being used. Maybe we should deviate from
        * the spec and require credentialTypes always since I see no reason in making it an assumption
        */
-      if (credentialTypes?.includes("permit2")) {
-        // TODO: implement permit2
+      if (credentialTypes?.includes("permit2") || credentialTypes === undefined) {
 
+        let sum = BigInt(0);
+        const permitted: Array<{ token: Address, amount: string }> = [];
+        const transferDetails: Array<{ to: Address, requestedAmount: string }> = [];
+
+        if (splits !== undefined) {
+          // permitted and transferDetails are needed later so they are added here
+          for (const entry of splits) {
+            sum += BigInt(entry.amount)
+            permitted.push({ token: currency, amount: entry.amount })
+            transferDetails.push({ to: entry.recipient as Address, requestedAmount: entry.amount });
+          }
+          if (sum >= amount) {
+            throw new Error(`sum of splits must be strictly lower than total amount. sum: ${sum} amount: ${amount}`);
+          }
+          if (splits.length === 0) {
+            throw new Error(`Splits is present but contains 0 entries`);
+          }
+        }
+        // Primary recipient needs to be at the beginning of the array. Cannot add the primary recipient
+        // before the loop due to needing to find the sum first so it can subtract from the total sum
+        // Even if there is only one recipient and the splits field wasnt provided, permitted and transferDetails
+        // Needs to contain the primary recipient so that is done here
+        const primaryRecipientAmount = (amount - BigInt(sum)).toString();
+        permitted.unshift({ token: currency, amount: primaryRecipientAmount })
+        transferDetails.unshift({ to: recipient, requestedAmount: primaryRecipientAmount })
+
+        const challengeHashWitness = createChallengeHash({ id, realm, transferDetails });
+        const nonce = BigInt(challengeHashWitness);
+
+        const deadline = challenge.expires
+          ? BigInt(Math.floor(new Date(challenge.expires).getTime() / 1000))
+          : BigInt(Math.floor(Date.now() / 1000) + 600);
+
+        // Depending on if splits exists or not, we are required to use different permit2 functions
+        // buildPermit2TypedData checks and does it for us 
+        const typedData = buildPermit2TypedData({
+          chainId,
+          permitted,
+          recipient,
+          nonce,
+          deadline,
+          Witness: { challengeHash: challengeHashWitness }
+        });
+
+        const signature = await signTypedData(client, {
+          account,
+          ...typedData
+        },
+        );
+
+        return Credential.serialize({
+          challenge,
+          payload: {
+            type: "permit2",
+            permit: {
+              permitted: permitted,
+              nonce: nonce.toString(),
+              deadline: deadline.toString(),
+            },
+            transferDetails: transferDetails,
+            witness: {
+              challengeHash: challengeHashWitness
+            },
+            signature: signature,
+          },
+          // Source is not required, yet without it we can't get the sender address 
+          // so this should be required by the server to check signature validity
+          // (or we diverge from the spec and add a from property to payload)
+          source: `did:pkh:eip155:${chainId}:${account.address}`
+        })
       }
+
       else if (credentialTypes?.includes("authorization")) {
         if (splits !== undefined) {
           throw new Error("Splits are not allowed for credentialType: authorization")
         }
 
         // Nonce is given hashed challenge info as a form of challenge binding
-        const nonce = keccak256(encodePacked(
-          defaults.CHALLENGE_HASH_ABI,
-          [challenge.id, challenge.realm]
-        ))
+        const nonce = createChallengeHash({ id, realm });
 
         /**
          * We may want to deviate from the spec and always require a challenge expiry 

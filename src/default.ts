@@ -12,14 +12,12 @@ export const USDCdecimals = 6;
 export const TOKEN_CONTRACTS = {
   USDC_ARBITRUM_ONE: "0xaf88d065e77c8cC2239327C5EDb3A432268e5831".toLowerCase() as Address,
   USDC_ARBITRUM_SEPOLIA: "0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d".toLowerCase() as Address
-} as const 
+} as const
 
 export const rpcUrl: Record<number, string> = {
   [chainId.arbitrumOne]: "https://arb1.arbitrum.io/rpc",
   [chainId.arbitrumSepolia]: "https://sepolia-rollup.arbitrum.io/rpc",
 };
-
-export const CHALLENGE_HASH_ABI = ['string', 'string']
 
 export const erc3009Abi = [
   {
@@ -73,15 +71,118 @@ export const erc3009Abi = [
 ] as const;
 
 export const erc3009Tokens: Record<string, { name: string; version: string; chainId: ChainId }> =
+{
+  [TOKEN_CONTRACTS.USDC_ARBITRUM_ONE]: {
+    name: "USD Coin",
+    version: "2",
+    chainId: chainId.arbitrumOne,
+  },
+  [TOKEN_CONTRACTS.USDC_ARBITRUM_SEPOLIA]: {
+    name: "USD Coin",
+    version: "2",
+    chainId: chainId.arbitrumSepolia,
+  },
+};
+
+export const PERMIT2_ADDRESS =
+  "0x000000000022D473030F116dDEE9F6B43aC78BA3".toLowerCase() as Address;
+
+export const tokenPermissionsType = [
+  { name: "token", type: "address" },
+  { name: "amount", type: "uint256" },
+] as const;
+
+export const PaymentWitness = [
+  { name: "challengeHash", type: "bytes32" },
+] as const;
+
+export const PERMIT2_WITNESS_TYPE_STRING = "PaymentWitness witness)PaymentWitness(bytes32 challengeHash)TokenPermissions(address token,uint256 amount)"
+
+export const PERMIT2_SINGLE_ABI = [
   {
-    [TOKEN_CONTRACTS.USDC_ARBITRUM_ONE]: {
-      name: "USD Coin",
-      version: "2",
-      chainId: chainId.arbitrumOne,
+    type: "function",
+    name: "permitWitnessTransferFrom",
+    stateMutability: "nonpayable",
+    inputs: [
+      {
+        name: "permit",
+        type: "tuple",
+        components: [
+          {
+            name: "permitted",
+            type: "tuple",
+            components: [
+              { name: "token", type: "address" },
+              { name: "amount", type: "uint256" },
+            ],
+          },
+          { name: "nonce", type: "uint256" },
+          { name: "deadline", type: "uint256" },
+        ],
+      },
+      {
+        name: "transferDetails",
+        type: "tuple",
+        components: [
+          { name: "to", type: "address" },
+          { name: "requestedAmount", type: "uint256" },
+        ],
+      },
+      { name: "owner", type: "address" },
+      { name: "witness", type: "bytes32" },
+      { name: "witnessTypeString", type: "string" },
+      { name: "signature", type: "bytes" },
+    ],
+    outputs: [],
+  },
+] as const;
+
+export const PERMIT2_BATCH_ABI = [{
+  type: "function",
+  name: "permitWitnessTransferFrom",
+  stateMutability: "nonpayable",
+  inputs: [
+    {
+      name: "permit",
+      type: "tuple",
+      components: [
+        {
+          name: "permitted",
+          type: "tuple[]",
+          components: [
+            { name: "token", type: "address" },
+            { name: "amount", type: "uint256" },
+          ],
+        },
+        { name: "nonce", type: "uint256" },
+        { name: "deadline", type: "uint256" },
+      ],
     },
-    [TOKEN_CONTRACTS.USDC_ARBITRUM_SEPOLIA]: {
-      name: "USD Coin",
-      version: "2",
-      chainId: chainId.arbitrumSepolia,
+    {
+      name: "transferDetails",
+      type: "tuple[]",
+      components: [
+        { name: "to", type: "address" },
+        { name: "requestedAmount", type: "uint256" },
+      ],
     },
-  };
+    { name: "owner", type: "address" },
+    { name: "witness", type: "bytes32" },
+    { name: "witnessTypeString", type: "string" },
+    { name: "signature", type: "bytes" },
+  ],
+  outputs: [],
+},
+] as const;
+
+export type Permit2Payload = {
+  type: string,
+  permit: {
+    permitted: { token: string, amount: string }[],
+    nonce: string,
+    deadline: string,
+  },
+  transferDetails: { to: string, requestedAmount: string }[],
+  witness: { challengeHash: string },
+  signature: string,
+}
