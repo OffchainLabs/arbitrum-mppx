@@ -6,7 +6,7 @@ export default defineConfig([
   {
     files: ['**/*.{js,mjs,cjs,ts,mts,cts}'],
     languageOptions: { globals: globals.browser },
-    ignores: ["**/node_modules/", "dist/"]
+    ignores: ['**/node_modules/', 'dist/'],
   },
   tseslint.configs.recommended,
 ]);
