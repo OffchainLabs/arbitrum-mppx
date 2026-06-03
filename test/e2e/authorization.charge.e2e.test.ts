@@ -196,9 +196,6 @@ describe("e2e: Authorization", async () => {
     expect(returnVal.headers.get("payment-receipt")).toBeNull();
   })
 
-  // TODO: ValidAfter is never checked by the server, meaning its only defense is eth_call
-  // and the signature, but can be avoided if the signer signed the tampered credential.
-  // eth_call catches the problem, but its better as a last resort
   it("Fails with tampered validAfter far in the future", async () => {
     let jsonCredential = await
       rawFetchAndMakeDecodedCredential<defaults.AuthorizationPayload>(clientMppx, FETCH_ENDPOINT);

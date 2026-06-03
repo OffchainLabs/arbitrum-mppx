@@ -400,6 +400,9 @@ export function charge(parameters: ChargeParameters): Method.Server<typeof Metho
 					if (BigInt(payload.validBefore) < Math.floor(Date.now() / 1000)) throw new Error(`Client payload timeframe is no longer valid.
 				 Current time: ${Date.now() / 1000} validBefore timestamp: ${payload.validBefore}`);
 
+				 if (BigInt(payload.validAfter) > Math.floor(Date.now() / 1000)) throw new Error(`Client payload validAfter 
+					time has not arrive Current time: ${Date.now() / 1000} validAfter timestamp: ${payload.validAfter}`);
+
 					if (hashedNonce != payload.nonce) throw new Error(`Client nonce is not the challengeHash`)
 
 					if (BigInt(payload.validBefore) < Math.floor(Date.now() / 1000)) throw new Error(`Client 
