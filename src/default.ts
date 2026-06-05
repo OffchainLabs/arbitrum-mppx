@@ -186,3 +186,14 @@ export type Permit2Payload = {
   witness: { challengeHash: string },
   signature: string,
 }
+
+export type AuthorizationPayload = {
+  type: string,
+  from: string,
+  to: string,
+  value: string,
+  validAfter: string,
+  validBefore: string,
+  nonce: string,
+  signature: string,
+}

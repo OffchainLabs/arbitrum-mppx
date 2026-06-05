@@ -7,7 +7,8 @@
     "server": "tsx test/server",
     "client": "tsx test/client",
     "build": "rm -rf dist && tsc",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "packageManager": "pnpm@10.30.3",
   "keywords": [],
@@ -44,11 +45,13 @@
   "devDependencies": {
     "@types/express": "^5.0.6",
     "@types/node": "^25.6.0",
+    "@viem/anvil": "^0.0.10",
     "eslint": "^10.2.1",
     "globals": "^17.5.0",
     "jiti": "^2.6.1",
     "tsx": "^4.21.0",
-    "typescript-eslint": "^8.59.1"
+    "typescript-eslint": "^8.59.1",
+    "vitest": "^4.1.7"
   },
   "peerDependencies": {
     "mppx": "^0.6.7"

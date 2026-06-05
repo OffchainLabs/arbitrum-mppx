@@ -2,7 +2,7 @@ import { Mppx } from 'mppx/client'
 import { charge } from '../src/client/index.js';
 import { config } from 'dotenv';
 import { privateKeyToAccount } from 'viem/accounts';
-import { exit } from 'node:process';
+
 config();
 
 if (process.env.CLIENT_PRIVATE_KEY == undefined) {
@@ -19,7 +19,7 @@ const mppx = Mppx.create({
   })]
 })
 
-const response = await mppx.fetch('http://localhost:3000/permit2SignatureTestSplit');
+const response = await mppx.fetch('http://localhost:3000/authorization');
 const data = await response.json();
 console.log(data);
 const paymentReceipt = response.headers.get('payment-receipt')
