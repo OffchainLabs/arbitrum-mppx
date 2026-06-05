@@ -6,7 +6,6 @@ import {
 	encodeAbiParameters,
 	verifyTypedData,
 	keccak256,
-	encodePacked,
 	toBytes,
 	parseSignature,
 	erc20Abi,
@@ -369,15 +368,6 @@ export function charge(parameters: ChargeParameters): Method.Server<typeof Metho
 					return toReceipt(receipt);
 				}
 				case "authorization": {
-					payload as {
-						from: string;
-						to: string;
-						value: string;
-						validAfter: string;
-						validBefore: string;
-						nonce: string;
-						signature: string;
-					}
 					if (methodDetails.credentialTypes?.find((type) => type === "authorization") === undefined) {
 						throw new Error(`type authorization was not available for this request. Given types: 
 							${methodDetails.credentialTypes}`)

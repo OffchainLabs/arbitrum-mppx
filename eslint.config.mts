@@ -4,9 +4,11 @@ import { defineConfig } from "eslint/config";
 
 export default defineConfig([
   {
+    ignores: ['**/node_modules/', 'dist/**', 'test/**']
+  },
+  {
     files: ['**/*.{js,mjs,cjs,ts,mts,cts}'],
     languageOptions: { globals: globals.browser },
-    ignores: ['**/node_modules/', 'dist/'],
   },
   tseslint.configs.recommended,
 ]);

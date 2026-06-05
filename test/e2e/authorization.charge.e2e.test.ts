@@ -42,7 +42,6 @@ describe("e2e: Authorization", async () => {
   });
   app.get(
     `/${ENDPOINT}`,
-    //@ts-ignore
     serverMppx.charge({
       amount: '1000',
       description: "authe2eTest description",
@@ -58,7 +57,6 @@ describe("e2e: Authorization", async () => {
   const clientMppx = MppxClient.create({
     methods: [chargeClient({
       account: clientAccount,
-      //@ts-ignore IDE doesnt recognize that its the client parameters and not the server parameters
       chainId: 421614,
       rpcUrls: rpcMapping
     })],
@@ -92,7 +90,7 @@ describe("e2e: Authorization", async () => {
 
   it("decode and encode makes successful payment", async () => {
     // sanity check for decode and encode making successful payment
-    let jsonCredential = await
+    const jsonCredential = await
       rawFetchAndMakeDecodedCredential<defaults.AuthorizationPayload>(clientMppx, FETCH_ENDPOINT);
 
     const returnVal = await encodeAndSendCredential(clientMppx, jsonCredential, FETCH_ENDPOINT);
@@ -106,7 +104,7 @@ describe("e2e: Authorization", async () => {
 
 
   it("Fails with tampered signature", async () => {
-    let jsonCredential = await
+    const jsonCredential = await
       rawFetchAndMakeDecodedCredential<defaults.AuthorizationPayload>(clientMppx, FETCH_ENDPOINT);
     // invalidate sig (must be same length or else a different check fails before signature validation)
     jsonCredential.payload.signature = "0x7c3a9f8e4b2d1e6f5a8c9b0d3e7f2a4c6b8d1e3f5a7c9b2d4e6f8a0c2b4d6e8f1a3c5e7f9b1d3e5f7a9c1b3d5e7f9a2c4b6d8e0f3a5c7b9d1e3f5a7c9b2d4e6f1b";
@@ -116,7 +114,7 @@ describe("e2e: Authorization", async () => {
   })
 
   it("Fails with tampered amount", async () => {
-    let jsonCredential = await
+    const jsonCredential = await
       rawFetchAndMakeDecodedCredential<defaults.AuthorizationPayload>(clientMppx, FETCH_ENDPOINT);
 
     jsonCredential.payload.value = (BigInt(jsonCredential.payload.value) / 2n).toString();
@@ -130,7 +128,7 @@ describe("e2e: Authorization", async () => {
   })
 
   it("Fails with tampered recipient", async () => {
-    let jsonCredential = await
+    const jsonCredential = await
       rawFetchAndMakeDecodedCredential<defaults.AuthorizationPayload>(clientMppx, FETCH_ENDPOINT);
     jsonCredential.payload.to = "0x000000000000000000000000000000000000bEEF";
     await resignAuthorizationCredential(jsonCredential, {
@@ -143,7 +141,7 @@ describe("e2e: Authorization", async () => {
   })
 
   it("Fails with tampered nonce", async () => {
-    let jsonCredential = await
+    const jsonCredential = await
       rawFetchAndMakeDecodedCredential<defaults.AuthorizationPayload>(clientMppx, FETCH_ENDPOINT);
 
     jsonCredential.payload.nonce = "0x" + "ab".repeat(32);
@@ -157,7 +155,7 @@ describe("e2e: Authorization", async () => {
   })
 
   it("Fails with expired validBefore", async () => {
-    let jsonCredential = await
+    const jsonCredential = await
       rawFetchAndMakeDecodedCredential<defaults.AuthorizationPayload>(clientMppx, FETCH_ENDPOINT);
     jsonCredential.payload.validBefore = "1";
     await resignAuthorizationCredential(jsonCredential, {
@@ -170,7 +168,7 @@ describe("e2e: Authorization", async () => {
   })
 
   it("Fails with signature on wrong chain", async () => {
-    let jsonCredential = await
+    const jsonCredential = await
       rawFetchAndMakeDecodedCredential<defaults.AuthorizationPayload>(clientMppx, FETCH_ENDPOINT);
     await resignAuthorizationCredential(jsonCredential, {
       currency: defaults.TOKEN_CONTRACTS.USDC_ARBITRUM_SEPOLIA,
@@ -183,7 +181,7 @@ describe("e2e: Authorization", async () => {
   })
 
   it("Fails with signature on wrong domain", async () => {
-    let jsonCredential = await
+    const jsonCredential = await
       rawFetchAndMakeDecodedCredential<defaults.AuthorizationPayload>(clientMppx, FETCH_ENDPOINT);
 
     await resignAuthorizationCredential(jsonCredential, {
@@ -197,7 +195,7 @@ describe("e2e: Authorization", async () => {
   })
 
   it("Fails with tampered validAfter far in the future", async () => {
-    let jsonCredential = await
+    const jsonCredential = await
       rawFetchAndMakeDecodedCredential<defaults.AuthorizationPayload>(clientMppx, FETCH_ENDPOINT);
     jsonCredential.payload.validAfter = (BigInt(Math.floor(Date.now() / 1000)) + 3600n).toString();
     await resignAuthorizationCredential(jsonCredential, {
@@ -210,7 +208,7 @@ describe("e2e: Authorization", async () => {
   })
 
   it("Fails with unknown payload type", async () => {
-    let jsonCredential = await
+    const jsonCredential = await
       rawFetchAndMakeDecodedCredential<defaults.AuthorizationPayload>(clientMppx, FETCH_ENDPOINT);
     jsonCredential.payload.type = "not-a-real-type";
     const returnVal = await encodeAndSendCredential(clientMppx, jsonCredential, FETCH_ENDPOINT);
@@ -228,7 +226,7 @@ describe("e2e: Authorization", async () => {
   })
 
   it("Fails with insufficient funds after client signs with sufficient funds", async () => {
-    let jsonCredential = await
+    const jsonCredential = await
       rawFetchAndMakeDecodedCredential<defaults.AuthorizationPayload>(clientMppx, FETCH_ENDPOINT);
 
     await seedUsdc(anvilTestClient, {

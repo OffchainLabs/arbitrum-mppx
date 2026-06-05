@@ -56,7 +56,6 @@ describe("e2e Permit2", async () => {
 
   app.get(
     `/${NO_SPLIT_ENDPOINT}`,
-    //@ts-ignore
     serverMppx.charge({
       amount: '1000',
       description: "permit2 no splits description",
@@ -70,7 +69,6 @@ describe("e2e Permit2", async () => {
   );
   app.get(
     `/${SPLIT_ENDPOINT}`,
-    //@ts-ignore
     serverMppx.charge({
       amount: '1500',
       description: "permit2 splits description",
@@ -88,7 +86,6 @@ describe("e2e Permit2", async () => {
   );
   app.get(
     `/${THREE_SPLIT_ENDPOINT}`,
-    //@ts-ignore
     serverMppx.charge({
       amount: '2500',
       description: "permit2 splits description",
@@ -114,7 +111,6 @@ describe("e2e Permit2", async () => {
   );
   app.get(
     `/${EQUAL_SPLITS_ENDPOINT}`,
-    //@ts-ignore
     serverMppx.charge({
       amount: '2000',
       description: "permit2 equal-amount splits description",
@@ -137,7 +133,6 @@ describe("e2e Permit2", async () => {
   const clientMppx = MppxClient.create({
     methods: [chargeClient({
       account: clientAccount,
-      //@ts-ignore IDE doesnt recognize that its the client parameters and not the server parameters
       chainId: 421614,
       rpcUrls: rpcMapping
     })],
@@ -192,7 +187,7 @@ describe("e2e Permit2", async () => {
   })
 
   it("decode and encode makes successful payment", async () => {
-    let jsonCredential = await
+    const jsonCredential = await
       rawFetchAndMakeDecodedCredential<defaults.Permit2Payload>(clientMppx, NO_SPLIT_FETCH_ENDPOINT);
 
     const returnVal = await encodeAndSendCredential(clientMppx, jsonCredential, NO_SPLIT_FETCH_ENDPOINT);
@@ -206,7 +201,7 @@ describe("e2e Permit2", async () => {
 
   it("Re-sign sanity: untouched credential re-signed by client still succeeds", async () => {
     // makes sure that resigning works
-    let jsonCredential = await
+    const jsonCredential = await
       rawFetchAndMakeDecodedCredential<defaults.Permit2Payload>(clientMppx, NO_SPLIT_FETCH_ENDPOINT);
     await resignPermit2Credential(jsonCredential, {
       recipient: serverAccount.address,
@@ -220,7 +215,7 @@ describe("e2e Permit2", async () => {
   })
 
   it("Fails with tampered signature", async () => {
-    let jsonCredential = await
+    const jsonCredential = await
       rawFetchAndMakeDecodedCredential<defaults.Permit2Payload>(clientMppx, NO_SPLIT_FETCH_ENDPOINT);
     // invalidate sig (must be same length or else a different check fails before signature validation)
     jsonCredential.payload.signature = "0x7c3a9f8e4b2d1e6f5a8c9b0d3e7f2a4c6b8d1e3f5a7c9b2d4e6f8a0c2b4d6e8f1a3c5e7f9b1d3e5f7a9c1b3d5e7f9a2c4b6d8e0f3a5c7b9d1e3f5a7c9b2d4e6f1b";
@@ -230,7 +225,7 @@ describe("e2e Permit2", async () => {
   })
 
   it("Fails with tampered permitted token", async () => {
-    let jsonCredential = await
+    const jsonCredential = await
       rawFetchAndMakeDecodedCredential<defaults.Permit2Payload>(clientMppx, NO_SPLIT_FETCH_ENDPOINT);
     jsonCredential.payload.permit.permitted[0]!.token = "0x000000000000000000000000000000000000bEEF";
     await resignPermit2Credential(jsonCredential, {
@@ -244,7 +239,7 @@ describe("e2e Permit2", async () => {
   })
 
   it("Fails with tampered permitted amount", async () => {
-    let jsonCredential = await
+    const jsonCredential = await
       rawFetchAndMakeDecodedCredential<defaults.Permit2Payload>(clientMppx, NO_SPLIT_FETCH_ENDPOINT);
     const falseValue = BigInt(jsonCredential.payload.permit.permitted[0].amount) / BigInt(2);
     jsonCredential.payload.permit.permitted[0].amount = falseValue.toString();
@@ -259,7 +254,7 @@ describe("e2e Permit2", async () => {
   })
 
   it("Fails with tampered transfer recipient", async () => {
-    let jsonCredential = await
+    const jsonCredential = await
       rawFetchAndMakeDecodedCredential<defaults.Permit2Payload>(clientMppx, NO_SPLIT_FETCH_ENDPOINT);
     // Redirect funds to an attacker-controlled address
     jsonCredential.payload.transferDetails[0].to = "0x000000000000000000000000000000000000bEEF";
@@ -269,7 +264,7 @@ describe("e2e Permit2", async () => {
   })
 
   it("Fails with tampered transfer requestedAmount", async () => {
-    let jsonCredential = await
+    const jsonCredential = await
       rawFetchAndMakeDecodedCredential<defaults.Permit2Payload>(clientMppx, NO_SPLIT_FETCH_ENDPOINT);
     const falseValue = BigInt(jsonCredential.payload.transferDetails[0].requestedAmount) / BigInt(2);
     jsonCredential.payload.transferDetails[0].requestedAmount = falseValue.toString();
@@ -279,7 +274,7 @@ describe("e2e Permit2", async () => {
   })
 
   it("Fails with expired deadline", async () => {
-    let jsonCredential = await
+    const jsonCredential = await
       rawFetchAndMakeDecodedCredential<defaults.Permit2Payload>(clientMppx, NO_SPLIT_FETCH_ENDPOINT);
     jsonCredential.payload.permit.deadline = "1";
     await resignPermit2Credential(jsonCredential, {
@@ -293,7 +288,7 @@ describe("e2e Permit2", async () => {
   })
 
   it("Fails with tampered deadline", async () => {
-    let jsonCredential = await
+    const jsonCredential = await
       rawFetchAndMakeDecodedCredential<defaults.Permit2Payload>(clientMppx, NO_SPLIT_FETCH_ENDPOINT);
     // Bumping deadline still in the future invalidates the EIP-712 signature
     jsonCredential.payload.permit.deadline = (
@@ -305,7 +300,7 @@ describe("e2e Permit2", async () => {
   })
 
   it("Fails with tampered witness challengeHash", async () => {
-    let jsonCredential = await
+    const jsonCredential = await
       rawFetchAndMakeDecodedCredential<defaults.Permit2Payload>(clientMppx, NO_SPLIT_FETCH_ENDPOINT);
     jsonCredential.payload.witness.challengeHash = "0x" + "ab".repeat(32);
     await resignPermit2Credential(jsonCredential, {
@@ -319,7 +314,7 @@ describe("e2e Permit2", async () => {
   })
 
   it("Fails with unknown payload type", async () => {
-    let jsonCredential = await
+    const jsonCredential = await
       rawFetchAndMakeDecodedCredential<defaults.Permit2Payload>(clientMppx, NO_SPLIT_FETCH_ENDPOINT);
     jsonCredential.payload.type = "not-a-real-type";
     const returnVal = await encodeAndSendCredential(clientMppx, jsonCredential, NO_SPLIT_FETCH_ENDPOINT);
@@ -328,7 +323,7 @@ describe("e2e Permit2", async () => {
   })
 
   it("Fails with mismatched payload type (authorization)", async () => {
-    let jsonCredential = await
+    const jsonCredential = await
       rawFetchAndMakeDecodedCredential<defaults.Permit2Payload>(clientMppx, NO_SPLIT_FETCH_ENDPOINT);
     // Permit2 endpoint should reject a credential claiming to be of authorization type
     jsonCredential.payload.type = "authorization";
@@ -338,7 +333,7 @@ describe("e2e Permit2", async () => {
   })
 
   it("Fails with tampered split recipient", async () => {
-    let jsonCredential = await
+    const jsonCredential = await
       rawFetchAndMakeDecodedCredential<defaults.Permit2Payload>(clientMppx, SPLIT_FETCH_ENDPOINT);
     jsonCredential.payload.transferDetails[1].to = "0x000000000000000000000000000000000000bEEF";
     const returnVal = await encodeAndSendCredential(clientMppx, jsonCredential, SPLIT_FETCH_ENDPOINT);
@@ -347,7 +342,7 @@ describe("e2e Permit2", async () => {
   })
 
   it("Fails with tampered split amount", async () => {
-    let jsonCredential = await
+    const jsonCredential = await
       rawFetchAndMakeDecodedCredential<defaults.Permit2Payload>(clientMppx, SPLIT_FETCH_ENDPOINT);
     const falseValue = BigInt(jsonCredential.payload.transferDetails[1].requestedAmount) / BigInt(2);
     jsonCredential.payload.transferDetails[1].requestedAmount = falseValue.toString();
@@ -357,7 +352,7 @@ describe("e2e Permit2", async () => {
   })
 
   it("Fails with dropped split", async () => {
-    let jsonCredential = await
+    const jsonCredential = await
       rawFetchAndMakeDecodedCredential<defaults.Permit2Payload>(clientMppx, THREE_SPLIT_FETCH_ENDPOINT);
     jsonCredential.payload.permit.permitted.pop();
     jsonCredential.payload.transferDetails.pop();
@@ -381,7 +376,7 @@ describe("e2e Permit2", async () => {
   })
 
   it("Fails with insufficient funds after client signs with sufficient funds", async () => {
-    let jsonCredential = await
+    const jsonCredential = await
       rawFetchAndMakeDecodedCredential<defaults.Permit2Payload>(clientMppx, NO_SPLIT_FETCH_ENDPOINT);
 
     await seedUsdc(anvilTestClient, {
@@ -396,7 +391,7 @@ describe("e2e Permit2", async () => {
   })
 
   it("Fails with reordered splits", async () => {
-    let jsonCredential = await
+    const jsonCredential = await
       rawFetchAndMakeDecodedCredential<defaults.Permit2Payload>(clientMppx, THREE_SPLIT_FETCH_ENDPOINT);
     const permitted = jsonCredential.payload.permit.permitted;
     const tDetails = jsonCredential.payload.transferDetails;
@@ -413,7 +408,7 @@ describe("e2e Permit2", async () => {
   })
 
   it("Fails when primary recipient is moved out of the front", async () => {
-    let jsonCredential = await
+    const jsonCredential = await
       rawFetchAndMakeDecodedCredential<defaults.Permit2Payload>(clientMppx, SPLIT_FETCH_ENDPOINT);
     const permitted = jsonCredential.payload.permit.permitted;
     const tDetails = jsonCredential.payload.transferDetails;
@@ -430,7 +425,7 @@ describe("e2e Permit2", async () => {
   })
 
   it("Fails with tampered primary amount", async () => {
-    let jsonCredential = await
+    const jsonCredential = await
       rawFetchAndMakeDecodedCredential<defaults.Permit2Payload>(clientMppx, NO_SPLIT_FETCH_ENDPOINT);
     // Halve both permitted.amount and transferDetails.requestedAmount so the credential
     // is internally consistent; the server must catch the mismatch against request.amount.
@@ -448,7 +443,7 @@ describe("e2e Permit2", async () => {
   })
 
   it("Fails with inflated total — splits sums match the new total", async () => {
-    let jsonCredential = await
+    const jsonCredential = await
       rawFetchAndMakeDecodedCredential<defaults.Permit2Payload>(clientMppx, SPLIT_FETCH_ENDPOINT);
     const DELTA_PRIMARY = 100n;
     const DELTA_SPLIT = 50n;
@@ -475,7 +470,7 @@ describe("e2e Permit2", async () => {
   })
 
   it("Fails with tampered source (did:pkh)", async () => {
-    let jsonCredential = await
+    const jsonCredential = await
       rawFetchAndMakeDecodedCredential<defaults.Permit2Payload>(clientMppx, NO_SPLIT_FETCH_ENDPOINT);
     // Server uses the source to verify the signature with, if its tampered then
     // Signature check should throw
@@ -486,7 +481,7 @@ describe("e2e Permit2", async () => {
   })
 
   it("Fails with wrong chainId in source (did:pkh)", async () => {
-    let jsonCredential = await
+    const jsonCredential = await
       rawFetchAndMakeDecodedCredential<defaults.Permit2Payload>(clientMppx, NO_SPLIT_FETCH_ENDPOINT);
     // Swap only the chainId portion of did:pkh:eip155:<chainId>:<address>; address stays valid.
     // Server compares Number(chainIdStr) against methodDetails.chainId and must reject.
@@ -497,7 +492,7 @@ describe("e2e Permit2", async () => {
   })
 
   it("Fails with signature on wrong chain", async () => {
-    let jsonCredential = await
+    const jsonCredential = await
       rawFetchAndMakeDecodedCredential<defaults.Permit2Payload>(clientMppx, NO_SPLIT_FETCH_ENDPOINT);
     await resignPermit2Credential(jsonCredential, {
       recipient: serverAccount.address,
@@ -518,7 +513,7 @@ describe("e2e Permit2", async () => {
       spender: defaults.PERMIT2_ADDRESS,
       amount: 0n
     })
-    let jsonCredential = await
+    const jsonCredential = await
       rawFetchAndMakeDecodedCredential<defaults.Permit2Payload>(clientMppx, NO_SPLIT_FETCH_ENDPOINT);
     const returnVal = await encodeAndSendCredential(clientMppx, jsonCredential, NO_SPLIT_FETCH_ENDPOINT);
     expect(returnVal.status).toBe(402);
@@ -526,7 +521,7 @@ describe("e2e Permit2", async () => {
   })
 
   it("Fails with malformed source string", async () => {
-    let jsonCredential = await
+    const jsonCredential = await
       rawFetchAndMakeDecodedCredential<defaults.Permit2Payload>(clientMppx, NO_SPLIT_FETCH_ENDPOINT);
     // Not a did:pkh URI — fails the `parts.length !== 5 || parts[0] !== 'did' || parts[1] !== 'pkh'` guard.
     jsonCredential.source = "did:web:example.com";
@@ -536,7 +531,7 @@ describe("e2e Permit2", async () => {
   })
 
   it("Fails with mismatched permitted/transferDetails lengths", async () => {
-    let jsonCredential = await
+    const jsonCredential = await
       rawFetchAndMakeDecodedCredential<defaults.Permit2Payload>(clientMppx, SPLIT_FETCH_ENDPOINT);
     // Pop only one side so permitted.length !== transferDetails.length — separate branch
     // from the "dropped split" case where both arrays are popped in lock-step.
@@ -547,7 +542,7 @@ describe("e2e Permit2", async () => {
   })
 
   it("Fails with reordered equal-amount splits (recipient check, not amount)", async () => {
-    let jsonCredential = await
+    const jsonCredential = await
       rawFetchAndMakeDecodedCredential<defaults.Permit2Payload>(clientMppx, EQUAL_SPLITS_FETCH_ENDPOINT);
     // Both splits configured with amount 500 to different recipients. Swap positions 1 and 2
     // in both arrays so internal consistency (p.amount === t.requestedAmount) still holds AND
@@ -565,7 +560,7 @@ describe("e2e Permit2", async () => {
   it("Fails with witness challengeHash from a different challenge", async () => {
     const donor = await
       rawFetchAndMakeDecodedCredential<defaults.Permit2Payload>(clientMppx, NO_SPLIT_FETCH_ENDPOINT);
-    let jsonCredential = await
+    const jsonCredential = await
       rawFetchAndMakeDecodedCredential<defaults.Permit2Payload>(clientMppx, NO_SPLIT_FETCH_ENDPOINT);
     jsonCredential.payload.witness.challengeHash = donor.payload.witness.challengeHash;
     await resignPermit2Credential(jsonCredential, {
@@ -580,7 +575,7 @@ describe("e2e Permit2", async () => {
 
   it("Fails on replay of an already-consumed credential", async () => {
     // First submission should succeed and consume the permit2 nonce on-chain.
-    let jsonCredential = await
+    const jsonCredential = await
       rawFetchAndMakeDecodedCredential<defaults.Permit2Payload>(clientMppx, NO_SPLIT_FETCH_ENDPOINT);
     const first = await encodeAndSendCredential(clientMppx, jsonCredential, NO_SPLIT_FETCH_ENDPOINT);
     expect(first.status).toBe(200);
@@ -606,7 +601,7 @@ describe("e2e Permit2", async () => {
   })
 
   it("Fails with phantom extra split appended", async () => {
-    let jsonCredential = await
+    const jsonCredential = await
       rawFetchAndMakeDecodedCredential<defaults.Permit2Payload>(clientMppx, SPLIT_FETCH_ENDPOINT);
     jsonCredential.payload.permit.permitted.push({
       token: defaults.TOKEN_CONTRACTS.USDC_ARBITRUM_SEPOLIA,
@@ -627,7 +622,7 @@ describe("e2e Permit2", async () => {
   })
 
   it("Fails with tampered challenge.id", async () => {
-    let jsonCredential = await
+    const jsonCredential = await
       rawFetchAndMakeDecodedCredential<defaults.Permit2Payload>(clientMppx, NO_SPLIT_FETCH_ENDPOINT);
 
     (jsonCredential.challenge as { id: string }).id = "tampered-challenge-id";
@@ -642,7 +637,7 @@ describe("e2e Permit2", async () => {
     const { id, realm } = challenge;
     const encodedCredential = await clientMppx.createCredential(response);
 
-    let jsonCredential = encodedCredentialToJson(encodedCredential);
+    const jsonCredential = encodedCredentialToJson(encodedCredential);
 
     const permitted = jsonCredential.payload.permit.permitted;
     const tDetails = jsonCredential.payload.transferDetails;

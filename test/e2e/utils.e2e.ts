@@ -131,7 +131,7 @@ export async function rawFetchAndMakeDecodedCredential<T>(clientMppx: MppxClient
   return encodedCredentialToJson(encodedCredential);
 }
 
-export async function encodeAndSendCredential(clientMppx: MppxClient.Mppx, jsonCredential: any, fetchEndpoint: string) {
+export async function encodeAndSendCredential(clientMppx: MppxClient.Mppx, jsonCredential: JSON, fetchEndpoint: string) {
   const reEncodedCredential = jsonToEncodedCredential(jsonCredential);
   const init = clientMppx.transport.setCredential({}, reEncodedCredential);
   return await clientMppx.rawFetch(fetchEndpoint, init);
@@ -147,7 +147,7 @@ export function encodedCredentialToJson(encodedCredential: string) {
   return JSON.parse(Buffer.from(strippedCredential, 'base64').toString('utf-8'));
 }
 
-export function jsonToEncodedCredential(jsonCredential: any) {
+export function jsonToEncodedCredential(jsonCredential: JSON) {
   const reEncodedCredential = Buffer.from(JSON.stringify(jsonCredential)).toString('base64');
   // The string "Payment " is at the beginning of the encoded credential
   // so it needs to be re added
