@@ -8,7 +8,9 @@
     "client": "tsx test/client",
     "build": "rm -rf dist && tsc",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "lint": "eslint . --fix",
+    "format": "prettier --write . "
   },
   "packageManager": "pnpm@10.30.3",
   "keywords": [],
@@ -43,12 +45,15 @@
     "viem": "^2.48.4"
   },
   "devDependencies": {
+    "@offchainlabs/prettier-config": "0.3.0",
+    "@trivago/prettier-plugin-sort-imports": "6.0.2",
     "@types/express": "^5.0.6",
     "@types/node": "^25.6.0",
     "@viem/anvil": "^0.0.10",
     "eslint": "^10.2.1",
     "globals": "^17.5.0",
     "jiti": "^2.6.1",
+    "prettier": "3.8.3",
     "tsx": "^4.21.0",
     "typescript-eslint": "^8.59.1",
     "vitest": "^4.1.7"
