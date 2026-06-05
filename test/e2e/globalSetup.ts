@@ -1,5 +1,6 @@
-import { createAnvil } from "@viem/anvil";
-import { ANVIL_HOST, ANVIL_PORT, FORK_URL } from "./anvil.js";
+import { createAnvil } from '@viem/anvil';
+
+import { ANVIL_HOST, ANVIL_PORT, FORK_URL } from './anvil.js';
 
 export default async function setup() {
   const anvil = createAnvil({
