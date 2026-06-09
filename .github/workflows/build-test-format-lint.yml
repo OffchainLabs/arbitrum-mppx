@@ -25,7 +25,6 @@ jobs:
         uses: pnpm/action-setup@v4
         with:
           node-version: ${{ matrix.node-version }}
-          cache: pnpm
 
       - name: Install node_modules 
         run: pnpm install --frozen-lockfile
@@ -51,7 +50,6 @@ jobs:
         uses: pnpm/action-setup@v4
         with:
           node-version: ${{ matrix.node-version }}
-          cache: pnpm
 
       - name: Install node_modules 
         run: pnpm install --frozen-lockfile
@@ -77,7 +75,6 @@ jobs:
         uses: pnpm/action-setup@v4
         with:
           node-version: ${{ matrix.node-version }}
-          cache: pnpm
 
       - name: Install node_modules 
         run: pnpm install --frozen-lockfile
@@ -103,7 +100,6 @@ jobs:
         uses: pnpm/action-setup@v4
         with:
           node-version: ${{ matrix.node-version }}
-          cache: pnpm
 
       - name: Setup Foundry
         uses: foundry-rs/foundry-toolchain@v1
