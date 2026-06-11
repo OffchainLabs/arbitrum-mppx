@@ -2,7 +2,9 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { charge } from '@arbitrum/mpp/client';
 import { config } from 'dotenv';
+import { Challenge, Receipt } from 'mppx';
 import { Mppx } from 'mppx/client';
+import { formatUnits } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 import { z } from 'zod';
 
@@ -40,33 +42,227 @@ async function buy(endpoint: string): Promise<string | null> {
   return final;
 }
 
+// Best-effort friendly label for known token contracts on Arbitrum.
+const KNOWN_TOKENS: Record<string, string> = {
+  '0x75faf114eafb1bdbe2f0316df893fd58ce46aa4d': 'USDC (Arbitrum Sepolia)',
+  '0xaf88d065e77c8cc2239327c5edb3a432268e5831': 'USDC (Arbitrum One)',
+};
+
+function tokenLabel(currency: string): string {
+  const known = KNOWN_TOKENS[currency.toLowerCase()];
+  return known ? `${known} — ${currency}` : currency;
+}
+
+// server.registerTool(
+//   'pay_endpoint',
+//   {
+//     description: 'Pay the endpoint and retrieve the information',
+//     inputSchema: {
+//       state: z.string().describe('The endpoint that MPP should buy from'),
+//     },
+//   },
+//   async ({ state }) => {
+//     const mppEndpoint = state;
+//     const mppReceipt = await buy(mppEndpoint);
+
+//     if (mppReceipt === null) {
+//       return {
+//         content: [
+//           {
+//             type: 'text',
+//             text: 'Failed to pay',
+//           },
+//         ],
+//       };
+//     }
+//     return {
+//       content: [
+//         {
+//           type: 'text',
+//           text: mppReceipt,
+//         },
+//       ],
+//     };
+//   },
+// );
+
+// Step 1: fetch the endpoint, read the 402 payment challenge, and relay what the
+// user is being asked to pay (purpose, amount, token, recipient) back to them.
 server.registerTool(
-  'pay_endpoint',
+  'inspect_payment',
   {
-    description: 'Pay the endpoint and retrieve the information',
+    description:
+      'Fetch an MPP endpoint and relay its payment challenge: what you are paying for, how much, which token, and who receives it. Does NOT pay. Use this first so the user can decide whether to approve.',
     inputSchema: {
-      state: z.string().describe('The endpoint that MPP should buy from'),
+      endpoint: z.string().describe('The MPP endpoint to inspect for payment requirements'),
     },
   },
-  async ({ state }) => {
-    const mppEndpoint = state;
-    const mppReceipt = await buy(mppEndpoint);
+  async ({ endpoint }) => {
+    const response = await mppx.rawFetch(endpoint);
 
-    if (mppReceipt === null) {
+    if (response.status !== 402) {
+      const body = await response.text();
       return {
         content: [
           {
             type: 'text',
-            text: 'Failed to pay',
+            text:
+              `Endpoint did not request payment (HTTP ${response.status}). ` +
+              `No payment challenge to approve.\n\nResponse body:\n${body}`,
           },
         ],
       };
     }
+
+    const challenge = Challenge.fromResponse(response);
+    const request = challenge.request as {
+      amount: string;
+      currency: string;
+      recipient: string;
+      description?: string;
+      methodDetails?: { chainId?: number; decimals?: number };
+    };
+
+    const decimals = request.methodDetails?.decimals ?? 6;
+    const humanAmount = formatUnits(BigInt(request.amount), decimals);
+
+    const summary = [
+      `Payment requested by: ${challenge.realm}`,
+      `Paying for: ${request.description ?? challenge.description ?? '(no description provided)'}`,
+      `Amount: ${humanAmount} (${request.amount} base units, ${decimals} decimals)`,
+      `Token: ${tokenLabel(request.currency)}`,
+      `Recipient: ${request.recipient}`,
+      request.methodDetails?.chainId !== undefined
+        ? `Chain ID: ${request.methodDetails.chainId}`
+        : undefined,
+      challenge.expires ? `Expires: ${challenge.expires}` : undefined,
+      `Method/intent: ${challenge.method}/${challenge.intent}`,
+      '',
+      `If you approve, call create_credential with this same endpoint to sign the payment, ` +
+      `then submit_credential to complete it and receive the data.`,
+    ]
+      .filter((line) => line !== undefined)
+      .join('\n');
+
     return {
       content: [
         {
           type: 'text',
-          text: mppReceipt,
+          text: summary,
+        },
+      ],
+    };
+  },
+);
+
+// Step 2: once the user approves, sign and create the payment credential for the
+// endpoint's challenge. Returns the credential string to hand to submit_credential.
+server.registerTool(
+  'create_credential',
+  {
+    description:
+      'After the user has approved the payment shown by inspect_payment, create (sign) the payment credential for the endpoint. Returns the credential string to pass to submit_credential. Only call this once the user has explicitly approved paying.',
+    inputSchema: {
+      endpoint: z
+        .string()
+        .describe('The same MPP endpoint that was inspected and approved for payment'),
+    },
+  },
+  async ({ endpoint }) => {
+    const response = await mppx.rawFetch(endpoint);
+    if (response.status !== 402) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `Endpoint no longer requests payment (HTTP ${response.status}). Nothing to sign.`,
+          },
+        ],
+      };
+    }
+
+    try {
+      const credential = await mppx.createCredential(response);
+      return {
+        content: [
+          {
+            type: 'text',
+            text: credential,
+          },
+        ],
+      };
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `Failed to create credential: ${error instanceof Error ? error.message : String(error)}`,
+          },
+        ],
+      };
+    }
+  },
+);
+
+// Step 3: send the signed credential back to the challenge server, then return the
+// purchased data along with the payment status and transaction hash.
+server.registerTool(
+  'submit_credential',
+  {
+    description:
+      'Send a signed payment credential (from create_credential) back to the MPP endpoint that issued the challenge, then return the purchased data along with the payment status and transaction hash.',
+    inputSchema: {
+      endpoint: z.string().describe('The MPP endpoint that issued the payment challenge'),
+      credential: z
+        .string()
+        .describe('The credential string produced by create_credential'),
+    },
+  },
+  async ({ endpoint, credential }) => {
+    const response = await mppx.rawFetch(endpoint, {
+      headers: { Authorization: credential },
+    });
+
+    const rawBody = await response.text();
+    let data: string = rawBody;
+    try {
+      data = JSON.stringify(JSON.parse(rawBody), null, 2);
+    } catch {
+      // body was not JSON — keep it as-is
+    }
+
+    if (!response.ok) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `Payment was not accepted (HTTP ${response.status}).\n\nResponse:\n${data}`,
+          },
+        ],
+      };
+    }
+
+    let receiptText = 'No payment receipt was returned by the server.';
+    try {
+      const receipt = Receipt.fromResponse(response);
+      receiptText = [
+        `Status: ${receipt.status}`,
+        `Transaction hash: ${receipt.reference}`,
+        `Method: ${receipt.method}`,
+        `Settled at: ${receipt.timestamp}`,
+        receipt.externalId ? `External ID: ${receipt.externalId}` : undefined,
+      ]
+        .filter((line) => line !== undefined)
+        .join('\n');
+    } catch {
+      // no/invalid receipt header — fall back to the default message
+    }
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `Payment complete.\n\n${receiptText}\n\nData you paid for:\n${data}`,
         },
       ],
     };
