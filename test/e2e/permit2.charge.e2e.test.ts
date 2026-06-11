@@ -62,7 +62,6 @@ describe('e2e Permit2', async () => {
       description: 'permit2 no splits description',
       methodDetails: {
         chainId: ANVIL_CHAIN_ID,
-        permit2Address: defaults.PERMIT2_ADDRESS,
         credentialTypes: ['permit2'],
       },
     }),
@@ -75,7 +74,6 @@ describe('e2e Permit2', async () => {
       description: 'permit2 splits description',
       methodDetails: {
         chainId: ANVIL_CHAIN_ID,
-        permit2Address: defaults.PERMIT2_ADDRESS,
         credentialTypes: ['permit2'],
         splits: [
           {
@@ -94,7 +92,6 @@ describe('e2e Permit2', async () => {
       description: 'permit2 splits description',
       methodDetails: {
         chainId: ANVIL_CHAIN_ID,
-        permit2Address: defaults.PERMIT2_ADDRESS,
         credentialTypes: ['permit2'],
         splits: [
           {
@@ -121,7 +118,6 @@ describe('e2e Permit2', async () => {
       description: 'permit2 equal-amount splits description',
       methodDetails: {
         chainId: ANVIL_CHAIN_ID,
-        permit2Address: defaults.PERMIT2_ADDRESS,
         credentialTypes: ['permit2'],
         splits: [
           {

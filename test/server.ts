@@ -48,7 +48,6 @@ app.get(
     description: 'My favorite food',
     methodDetails: {
       chainId: 421614,
-      permit2Address: defaults.PERMIT2_ADDRESS,
       credentialTypes: ['authorization'],
     },
   }),
@@ -62,7 +61,6 @@ app.get(
     description: 'Testing permit2',
     methodDetails: {
       chainId: 421614,
-      permit2Address: defaults.PERMIT2_ADDRESS,
       credentialTypes: ['permit2'],
     },
   }),
@@ -76,7 +74,6 @@ app.get(
     description: 'Testing permit2',
     methodDetails: {
       chainId: 421614,
-      permit2Address: defaults.PERMIT2_ADDRESS,
       credentialTypes: ['permit2'],
       splits: [
         {
