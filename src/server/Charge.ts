@@ -74,6 +74,12 @@ export function charge(parameters: ChargeParameters): Method.Server<typeof Metho
 
       const { chainId, splits } = methodDetails;
 
+      if (!defaults.isSupportedChainId(chainId)) {
+        throw new Error(
+          `Unsupported chainId: ${chainId}. Only Arbitrum One (${defaults.chainId.arbitrumOne}) and Arbitrum Sepolia (${defaults.chainId.arbitrumSepolia}) are supported`,
+        );
+      }
+
       const client = clientsMap.get(chainId);
       if (client === undefined) {
         throw new Error(`rpcUrl not provided for chainId: ${chainId}`);

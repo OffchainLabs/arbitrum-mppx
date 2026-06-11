@@ -31,6 +31,12 @@ export function charge(parameters: ChargeParameters): Method.Client<typeof Metho
 
       const { chainId, credentialTypes, splits } = methodDetails;
 
+      if (!defaults.isSupportedChainId(chainId)) {
+        throw new Error(
+          `Unsupported chainId: ${chainId}. Only Arbitrum One (${defaults.chainId.arbitrumOne}) and Arbitrum Sepolia (${defaults.chainId.arbitrumSepolia}) are supported`,
+        );
+      }
+
       const client = clientsMap.get(chainId);
 
       if (chainId !== client?.chain?.id) {

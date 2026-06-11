@@ -45,6 +45,20 @@ describe('resolveClients', () => {
   });
 });
 
+describe('isSupportedChainId', () => {
+  it('accepts Arbitrum One and Arbitrum Sepolia', () => {
+    expect(defaults.isSupportedChainId(defaults.chainId.arbitrumOne)).toBe(true);
+    expect(defaults.isSupportedChainId(defaults.chainId.arbitrumSepolia)).toBe(true);
+  });
+
+  it('rejects any other chainId', () => {
+    // mainnet, base, optimism, polygon, an unrelated number
+    for (const id of [1, 8453, 10, 137, 0, 42162, 421613]) {
+      expect(defaults.isSupportedChainId(id)).toBe(false);
+    }
+  });
+});
+
 describe('buildPermit2TypedData', () => {
   const baseDomain = {
     name: 'Permit2',
