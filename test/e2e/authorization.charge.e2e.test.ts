@@ -37,6 +37,8 @@ describe('e2e: Authorization', async () => {
   const CHECKSUMMED_ENDPOINT = 'authChecksummedTest';
   const CHECKSUMMED_FETCH_ENDPOINT = `http://${ANVIL_HOST}:${PORT}/${CHECKSUMMED_ENDPOINT}`;
   const CHECKSUMMED_USDC = getAddress(defaults.TOKEN_CONTRACTS.USDC_ARBITRUM_SEPOLIA);
+  const UNSUPPORTED_CHAIN_ENDPOINT = 'authUnsupportedChain';
+  const UNSUPPORTED_CHAIN_FETCH_ENDPOINT = `http://${ANVIL_HOST}:${PORT}/${UNSUPPORTED_CHAIN_ENDPOINT}`;
   let server: Server;
 
   const serverMppx = await mppServerSetup({
@@ -72,6 +74,21 @@ describe('e2e: Authorization', async () => {
       description: 'checksummed currency test',
       methodDetails: {
         chainId: ANVIL_CHAIN_ID,
+        credentialTypes: ['authorization'],
+      },
+    }),
+    (req, res) => res.json({ data: DATA }),
+  );
+
+  // Endpoint configured for Ethereum mainnet (1) — a chain this method does not support.
+  // The challenge issues fine, but the client must refuse to sign for it.
+  app.get(
+    `/${UNSUPPORTED_CHAIN_ENDPOINT}`,
+    serverMppx.charge({
+      amount: '1000',
+      description: 'unsupported chain test',
+      methodDetails: {
+        chainId: 1,
         credentialTypes: ['authorization'],
       },
     }),
@@ -297,5 +314,13 @@ describe('e2e: Authorization', async () => {
     const returnVal = await encodeAndSendCredential(clientMppx, jsonCredential, FETCH_ENDPOINT);
     expect(returnVal.status).toBe(402);
     expect(returnVal.headers.get('payment-receipt')).toBeNull();
+  });
+
+  it('Rejects a challenge issued for an unsupported chainId', async () => {
+    // The client guard throws inside createCredential before any signing, which surfaces as a
+    // rejected fetch (same shape as the insufficient-funds case).
+    await expect(clientMppx.fetch(UNSUPPORTED_CHAIN_FETCH_ENDPOINT)).rejects.toThrow(
+      'Unsupported chainId',
+    );
   });
 });

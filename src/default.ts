@@ -7,6 +7,12 @@ export const chainId = {
 
 export type ChainId = (typeof chainId)[keyof typeof chainId];
 
+// This method only supports Arbitrum One and Arbitrum Sepolia. Used by both the client and the
+// server to reject any challenge issued for a different chain before any signing or settlement.
+export function isSupportedChainId(id: number): id is ChainId {
+  return id === chainId.arbitrumOne || id === chainId.arbitrumSepolia;
+}
+
 export const USDCdecimals = 6;
 
 export const TOKEN_CONTRACTS = {
