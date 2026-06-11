@@ -235,6 +235,13 @@ export function charge(parameters: ChargeParameters): Method.Server<typeof Metho
                 throw new Error(`transferDetails recipient is not equal to splits recipient
 									transferDetails recipient ${transferDetail.to} splits recipient: ${split.recipient}`);
               }
+              // Pin the amount each recipient receives to the amount the merchant requested.
+              // Without this, a payer could redistribute funds among the configured recipients
+              // (keeping the recipients, their order, and the grand total intact) and still pass.
+              if (BigInt(transferDetail.requestedAmount) !== BigInt(split.amount)) {
+                throw new Error(`transferDetails amount is not equal to the requested split amount
+					transferDetails amount: ${transferDetail.requestedAmount} splits amount: ${split.amount}`);
+              }
               requestSum += BigInt(transferDetail.requestedAmount);
             }
             // final check to make sure the primary recipient is getting paid the correct amount

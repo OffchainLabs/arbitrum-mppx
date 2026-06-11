@@ -863,4 +863,47 @@ describe('e2e Permit2', async () => {
     expect(returnVal.status).toBe(402);
     expect(returnVal.headers.get('payment-receipt')).toBeNull();
   });
+
+  it('Fails when split amounts are redistributed among the configured recipients', async () => {
+    // Claude found that you could re organize who receives what amount in splits and the server
+    // Would not check, the server checks now but this tampering was accepted beforehand
+    const response = await clientMppx.rawFetch(THREE_SPLIT_FETCH_ENDPOINT);
+    const challenge = clientMppx.transport.getChallenge(response);
+    const { id, realm } = challenge;
+    const encodedCredential = await clientMppx.createCredential(response);
+    const jsonCredential = encodedCredentialToJson(encodedCredential);
+
+    const permitted = jsonCredential.payload.permit.permitted;
+    const tDetails = jsonCredential.payload.transferDetails;
+
+    // index 0 = primary (untouched), 1 = splits1, 2 = splits2, 3 = splits3.
+    // Swap only the AMOUNTS of splits1 and splits3; recipients stay in their original positions.
+    const splits1Amount = permitted[1]!.amount;
+    const splits3Amount = permitted[3]!.amount;
+    permitted[1]!.amount = splits3Amount;
+    tDetails[1]!.requestedAmount = splits3Amount;
+    permitted[3]!.amount = splits1Amount;
+    tDetails[3]!.requestedAmount = splits1Amount;
+
+    // Rebind the witness to the tampered transferDetails and re-sign, exactly as an honest
+    // client would for these (different) amounts — so signature and witness checks both pass.
+    jsonCredential.payload.witness.challengeHash = createChallengeHash({
+      id,
+      realm,
+      transferDetails: tDetails,
+    });
+    await resignPermit2Credential(jsonCredential, {
+      recipient: serverAccount.address,
+      chainId: ANVIL_CHAIN_ID,
+      signer: clientAccount,
+    });
+
+    const returnVal = await encodeAndSendCredential(
+      clientMppx,
+      jsonCredential,
+      THREE_SPLIT_FETCH_ENDPOINT,
+    );
+    expect(returnVal.status).toBe(402);
+    expect(returnVal.headers.get('payment-receipt')).toBeNull();
+  });
 });
