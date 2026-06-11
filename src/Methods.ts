@@ -12,7 +12,6 @@ export const arbitrumCharge = Method.from({
       externalId: z.optional(z.string()),
       methodDetails: z.object({
         chainId: z.number(),
-        permit2Address: z.string(),
         credentialTypes: z.optional(z.array(z.string())),
         decimals: z.optional(z.number()),
         splits: z.optional(

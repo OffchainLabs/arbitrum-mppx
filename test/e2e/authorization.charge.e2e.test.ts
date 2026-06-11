@@ -1,6 +1,7 @@
 import express from 'express';
 import { Mppx as MppxClient } from 'mppx/client';
 import { Server } from 'node:http';
+import { getAddress } from 'viem';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { charge as chargeClient } from '../../src/client/index.js';
@@ -33,6 +34,9 @@ describe('e2e: Authorization', async () => {
   const ENDPOINT = 'authE2eTest';
   const DATA = 'authorization e2e test worked!';
   const FETCH_ENDPOINT = `http://${ANVIL_HOST}:${PORT}/${ENDPOINT}`;
+  const CHECKSUMMED_ENDPOINT = 'authChecksummedTest';
+  const CHECKSUMMED_FETCH_ENDPOINT = `http://${ANVIL_HOST}:${PORT}/${CHECKSUMMED_ENDPOINT}`;
+  const CHECKSUMMED_USDC = getAddress(defaults.TOKEN_CONTRACTS.USDC_ARBITRUM_SEPOLIA);
   let server: Server;
 
   const serverMppx = await mppServerSetup({
@@ -49,7 +53,25 @@ describe('e2e: Authorization', async () => {
       description: 'authe2eTest description',
       methodDetails: {
         chainId: ANVIL_CHAIN_ID,
-        permit2Address: defaults.PERMIT2_ADDRESS,
+        credentialTypes: ['authorization'],
+      },
+    }),
+    (req, res) => res.json({ data: DATA }),
+  );
+
+  // Same flow as the endpoint above, but the route-level currency override is checksummed
+  // instead of lowercased. Regression guard: the server used to look up erc3009Tokens with the
+  // currency exactly as configured while the registry keys are lowercased, so this configuration
+  // made the client sign fine but the server reject with "Token contract is not verified to
+  // have EIP3009"
+  app.get(
+    `/${CHECKSUMMED_ENDPOINT}`,
+    serverMppx.charge({
+      amount: '1000',
+      currency: CHECKSUMMED_USDC,
+      description: 'checksummed currency test',
+      methodDetails: {
+        chainId: ANVIL_CHAIN_ID,
         credentialTypes: ['authorization'],
       },
     }),
@@ -86,6 +108,17 @@ describe('e2e: Authorization', async () => {
 
   it('Succeeds and gets data', async () => {
     const returnVal = await clientMppx.fetch(FETCH_ENDPOINT);
+    const { data, decodedPaymentReceipt } = await decodeResponse(returnVal);
+    expect(data['data']).toEqual(DATA);
+    expect(decodedPaymentReceipt['status']).toEqual('success');
+    expect(decodedPaymentReceipt['method']).toEqual('arbitrum');
+  });
+
+  it('Succeeds when the configured currency is checksummed instead of lowercased', async () => {
+    // guard: if this ever holds, the test no longer exercises mixed casing
+    expect(CHECKSUMMED_USDC).not.toEqual(defaults.TOKEN_CONTRACTS.USDC_ARBITRUM_SEPOLIA);
+
+    const returnVal = await clientMppx.fetch(CHECKSUMMED_FETCH_ENDPOINT);
     const { data, decodedPaymentReceipt } = await decodeResponse(returnVal);
     expect(data['data']).toEqual(DATA);
     expect(decodedPaymentReceipt['status']).toEqual('success');
