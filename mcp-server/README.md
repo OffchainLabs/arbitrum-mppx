@@ -7,6 +7,7 @@ MPP endpoint URL, pays the challenge it returns, and hands the response back to 
 
 (I will probably make better endpoints that check how much its worth
 what it gives you etc etc but this works for now)
+
 ## Prerequisites
 
 - A funded wallet on **Arbitrum Sepolia**:
@@ -70,13 +71,15 @@ pnpm server
 ```
 
 Take note of the endpoint URL it hosts.
-NOTE: you will need to provide a SERVER_PRIVATE_KEY if you do this, and it MUST be funded 
+NOTE: you will need to provide a SERVER_PRIVATE_KEY if you do this, and it MUST be funded
 with testnet eth (server private key is put into the env file in the root folder of this repo)
 
-### 5. Ask Claude to pay the endpoint
+### 5. Ask Claude about Arbitrum MPP
 
-Give Claude the endpoint URL from step 5 and ask it to pay. It will call `pay_endpoint`,
-settle the payment, and return the endpoint's response once the payment goes through.
+I recommend first asking claude about the discoverable resources at the host you set the server 
+up at (Probably localhost:3000), it will then tell you about the different options
+
+You can then tell claude which one you want to pay, or all of them, doesn't matter
 
 ## Notes
 

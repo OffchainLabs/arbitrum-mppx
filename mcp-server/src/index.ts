@@ -1,8 +1,7 @@
+import { charge } from '@arbitrum/mpp/client';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import { charge } from '@arbitrum/mpp/client';
 import { config } from 'dotenv';
-import { Challenge, Receipt } from 'mppx';
 import { Mppx } from 'mppx/client';
 import { formatUnits } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
@@ -37,8 +36,7 @@ async function buy(endpoint: string): Promise<string | null> {
   const data = await response.json();
   const paymentReceipt = response.headers.get('payment-receipt');
   if (paymentReceipt == undefined) return null;
-  const final =
-    Buffer.from(paymentReceipt, 'base64').toString('binary') + JSON.stringify(data);
+  const final = Buffer.from(paymentReceipt, 'base64').toString('binary') + JSON.stringify(data);
   return final;
 }
 
@@ -52,6 +50,40 @@ function tokenLabel(currency: string): string {
   const known = KNOWN_TOKENS[currency.toLowerCase()];
   return known ? `${known} — ${currency}` : currency;
 }
+
+server.registerTool(
+  'Discover_endpoints',
+  {
+    description: 'Discover the different endpoints and there offers at this host',
+    inputSchema: {
+      link: z.string().describe('The host link'),
+    }
+  },
+  async ({ link }) => {
+    const response = await fetch(`${link}/openapi.json`);
+
+    if (!response.ok) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `Failed to fetch discovery data (HTTP ${response.status})`,
+          },
+        ],
+      };
+    }
+
+    const discovery = await response.text();
+    return {
+      content: [
+        {
+          type: 'text',
+          text: discovery,
+        },
+      ],
+    };
+  },
+)
 
 server.registerTool(
   'pay_endpoint',

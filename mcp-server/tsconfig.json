@@ -2,7 +2,7 @@
   "compilerOptions": {
     "rootDir": "./src",
     "outDir": "./dist",
-    
+
     "module": "nodenext",
     "moduleResolution": "nodenext",
     "target": "esnext",
