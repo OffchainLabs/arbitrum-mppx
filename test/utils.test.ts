@@ -24,16 +24,25 @@ describe('resolveClients', () => {
     expect(arbSepolia?.chain?.id).toBe(defaults.chainId.arbitrumSepolia);
   });
 
-  it('creates a client for every entry in the provided map', () => {
+  it('fails to make clients for unsupported chains', () => {
     const rpcUrls = new Map<number, string>([
       [1, 'https://eth.example/rpc'],
       [10, 'https://opt.example/rpc'],
       [42161, 'https://arb.example/rpc'],
     ]);
 
+    expect(() => resolveClients(rpcUrls)).toThrow('Unsupported chainId');
+  });
+
+  it('creates clients for a map of only supported chains', () => {
+    const rpcUrls = new Map<number, string>([
+      [defaults.chainId.arbitrumOne, 'https://arb.example/rpc'],
+      [defaults.chainId.arbitrumSepolia, 'https://arb-sepolia.example/rpc'],
+    ]);
+
     const clients = resolveClients(rpcUrls);
 
-    expect(clients.size).toBe(3);
+    expect(clients.size).toBe(2);
     for (const id of rpcUrls.keys()) {
       expect(clients.get(id)?.chain?.id).toBe(id);
     }
