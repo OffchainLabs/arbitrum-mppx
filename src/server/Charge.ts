@@ -25,7 +25,6 @@ export type ChargeParameters = {
   externalId?: string | undefined;
   methodDetails?: {
     chainId?: number | undefined;
-    permit2Address?: string | undefined;
     credentialTypes?: string[] | undefined;
     decimals?: number | undefined;
     splits?: string[] | undefined;
@@ -74,6 +73,12 @@ export function charge(parameters: ChargeParameters): Method.Server<typeof Metho
       const { methodDetails, recipient } = request;
 
       const { chainId, splits } = methodDetails;
+
+      if (!defaults.isSupportedChainId(chainId)) {
+        throw new Error(
+          `Unsupported chainId: ${chainId}. Only Arbitrum One (${defaults.chainId.arbitrumOne}) and Arbitrum Sepolia (${defaults.chainId.arbitrumSepolia}) are supported`,
+        );
+      }
 
       const client = clientsMap.get(chainId);
       if (client === undefined) {
@@ -228,13 +233,20 @@ export function charge(parameters: ChargeParameters): Method.Server<typeof Metho
                 throw new Error(`permitted and transferDetails have unequal amount values.
 									permitted: ${permittedItem.amount} transferDetails: ${transferDetail.requestedAmount}`);
               }
-              if (permittedItem.token.toLowerCase() !== currency?.toLowerCase()) {
+              if (permittedItem.token.toLowerCase() !== request.currency.toLowerCase()) {
                 throw new Error(`Permitted token address is not equal to request token address.
-									permitted: ${permittedItem.token} request: ${currency}`);
+									permitted: ${permittedItem.token} request: ${request.currency}`);
               }
               if (transferDetail.to.toLowerCase() !== split.recipient.toLowerCase()) {
                 throw new Error(`transferDetails recipient is not equal to splits recipient
 									transferDetails recipient ${transferDetail.to} splits recipient: ${split.recipient}`);
+              }
+              // Pin the amount each recipient receives to the amount the merchant requested.
+              // Without this, a payer could redistribute funds among the configured recipients
+              // (keeping the recipients, their order, and the grand total intact) and still pass.
+              if (BigInt(transferDetail.requestedAmount) !== BigInt(split.amount)) {
+                throw new Error(`transferDetails amount is not equal to the requested split amount
+					transferDetails amount: ${transferDetail.requestedAmount} splits amount: ${split.amount}`);
               }
               requestSum += BigInt(transferDetail.requestedAmount);
             }
@@ -265,7 +277,7 @@ export function charge(parameters: ChargeParameters): Method.Server<typeof Metho
           if (splits === undefined) {
             transactionInfo = {
               account: serverAccount,
-              to: defaults.PERMIT2_ADDRESS as Address,
+              to: defaults.PERMIT2_ADDRESS,
               data: encodeFunctionData({
                 abi: defaults.PERMIT2_SINGLE_ABI,
                 functionName: 'permitWitnessTransferFrom',
@@ -292,7 +304,7 @@ export function charge(parameters: ChargeParameters): Method.Server<typeof Metho
           } else {
             transactionInfo = {
               account: serverAccount,
-              to: defaults.PERMIT2_ADDRESS as Address,
+              to: defaults.PERMIT2_ADDRESS,
               data: encodeFunctionData({
                 abi: defaults.PERMIT2_BATCH_ABI,
                 functionName: 'permitWitnessTransferFrom',
@@ -321,9 +333,12 @@ export function charge(parameters: ChargeParameters): Method.Server<typeof Metho
           // Simulate via eth_call
           // I dont understand why I have to remove chainID for eth_call to not throw error but then
           // in authorization it doesnt care if chainId is a part of eth_call. TS 4/10
-          const ethCallResponse = await call(client, transactionInfo);
-          if (ethCallResponse.data !== undefined) {
-            throw new Error(`simulated transaction failed: ${ethCallResponse}`);
+          // permitWitnessTransferFrom has no return data, so success returns nothing
+          // and a revert makes call() throw
+          try {
+            await call(client, transactionInfo);
+          } catch (err) {
+            throw new Error('Transaction simulation (eth_call) failed', { cause: err });
           }
 
           const transactionHash = await sendTransaction(client, {
@@ -364,41 +379,28 @@ export function charge(parameters: ChargeParameters): Method.Server<typeof Metho
 							${methodDetails.credentialTypes}`);
           }
 
-          if (payload.to != request.recipient)
-            throw new Error(`Client payload sending to incorrect address: 
-							${payload.to} Should be ${request.recipient}`);
-
-          if (payload.value != request.amount)
-            throw new Error(`Client payload value is incorrect. 
-							payload value: ${payload.value} Should be ${request.amount}`);
-
-          const hashedNonce = createChallengeHash({ id, realm });
-
           if (payload.to.toLowerCase() !== request.recipient.toLowerCase())
-            throw new Error(`Client payload sending to incorrect address: 
-				${payload.to} Should be ${request.recipient}`);
+            throw new Error(`Client payload sending to incorrect address:
+					${payload.to} Should be ${request.recipient}`);
 
           if (payload.value != request.amount)
-            throw new Error(`Client payload value is incorrect. 
-					payload value: ${payload.value} Should be ${request.amount}`);
+            throw new Error(`Client payload value is incorrect.
+						payload value: ${payload.value} Should be ${request.amount}`);
 
           if (BigInt(payload.validBefore) < Math.floor(Date.now() / 1000))
             throw new Error(`Client payload timeframe is no longer valid.
-				 Current time: ${Date.now() / 1000} validBefore timestamp: ${payload.validBefore}`);
+					 Current time: ${Date.now() / 1000} validBefore timestamp: ${payload.validBefore}`);
 
           if (BigInt(payload.validAfter) > Math.floor(Date.now() / 1000))
-            throw new Error(`Client payload validAfter 
-					time has not arrive Current time: ${Date.now() / 1000} validAfter timestamp: ${payload.validAfter}`);
+            throw new Error(`Client payload validAfter
+						time has not arrive Current time: ${Date.now() / 1000} validAfter timestamp: ${payload.validAfter}`);
+
+          const hashedNonce = createChallengeHash({ id, realm });
 
           if (hashedNonce != payload.nonce)
             throw new Error(`Client nonce is not the challengeHash`);
 
-          if (BigInt(payload.validBefore) < Math.floor(Date.now() / 1000))
-            throw new Error(`Client 
-						payload timeframe is no longer valid. Current time: ${Date.now() / 1000} validBefore 
-						timestamp: ${payload.validBefore}`);
-
-          const tokenInfo = defaults.erc3009Tokens[request.currency];
+          const tokenInfo = defaults.erc3009Tokens[request.currency.toLowerCase()];
           if (!tokenInfo) throw new Error(`Token contract is not verified to have EIP3009`);
 
           // Make sure client have enough funds
@@ -540,7 +542,7 @@ function verifyPrimaryRecipient(
     throw new Error(`permitted or transferDetails at index 0 is undefined
 			permitted: ${permitted[0]} transferDetails: ${transferDetails[0]}`);
   }
-  if (permitted[0].token !== currency) {
+  if (permitted[0].token.toLowerCase() !== currency.toLowerCase()) {
     throw new Error(`permitted token contract is not correct. permitted: ${permitted[0].token}
 			request: ${currency}`);
   }
@@ -553,7 +555,7 @@ function verifyPrimaryRecipient(
     throw new Error(`permitted amount for primary recipient does not equal requested amount - sum of splits
 			permitted: ${permitted[0].amount} requested-splits: ${BigInt(requestAmount) - splitsSum}`);
   }
-  if (transferDetails[0].to !== requestRecipient) {
+  if (transferDetails[0].to.toLowerCase() !== requestRecipient.toLowerCase()) {
     throw new Error(`transferDetails to does not equal request recipient. transferDetails: ${transferDetails[0].to}
 			request recipient: ${requestRecipient}`);
   }

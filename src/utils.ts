@@ -19,6 +19,11 @@ export function resolveClients(rpcUrls: Map<number, string> | undefined): Map<nu
     clientsMap.set(arbOneClient.chain.id, arbOneClient);
   } else {
     for (const [id, url] of rpcUrls) {
+      if (!defaults.isSupportedChainId(id)) {
+        throw new Error(
+          `Unsupported chainId: ${id}. Only Arbitrum One (${defaults.chainId.arbitrumOne}) and Arbitrum Sepolia (${defaults.chainId.arbitrumSepolia}) are supported`,
+        );
+      }
       const newClient = createClient({ chain: { id } as Chain, transport: http(url) });
       clientsMap.set(id, newClient);
     }
