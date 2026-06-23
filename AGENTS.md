@@ -1,4 +1,4 @@
-# arbitrum-mppx
+# arbitrum-mpp
 
 ## Goal
 

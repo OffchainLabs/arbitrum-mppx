@@ -1,11 +1,11 @@
-# arbitrum-mppx
+# arbitrum-mpp
 
 A package for letting users make payments using MPP (Machine Payments Protocol) on Arbitrum.
 
 # package structure
 
 ```bash
-arbitrum-mppx/
+arbitrum-mpp/
 ├── src/
 │   ├── index.ts              # Re-export shared schemas
 │   ├── Methods.ts            # Shared Method.from() definitions
