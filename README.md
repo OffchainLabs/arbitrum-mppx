@@ -1,6 +1,6 @@
 # arbitrum-mpp
 
-A package for letting users make payments using MPP (Machine Payments Protocol) on Arbitrum.
+Make payments using MPP (Machine Payments Protocol) on Arbitrum.
 
 # package structure
 

@@ -1,6 +1,6 @@
 {
   "name": "@arbitrum/mpp",
-  "description": "A package for letting users make payments using MPP (Machine Payments Protocol) on Arbitrum",
+  "description": "Make payments using MPP (Machine Payments Protocol) on Arbitrum",
   "version": "0.1.0",
   "type": "module",
   "scripts": {
