@@ -1,0 +1,62 @@
+name: Publish to NPM
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version to publish (blank = use package.json version)
+        type: string
+        required: false
+      tag:
+        description: npm dist-tag
+        type: string
+        default: latest
+      dry_run:
+        description: Run npm publish --dry-run
+        type: boolean
+        default: false
+
+# OIDC publish
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  publish:
+    name: Publish @arbitrum/mpp
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup
+        uses: ./.github/actions/setup
+
+      - name: Build
+        run: pnpm build
+
+      - name: Set version
+        if: inputs.version != ''
+        run: npm version "${{ inputs.version }}" --no-git-tag-version
+
+      # Get latest version to ensure it supports Trusted Publishing
+      - name: Ensure npm supports Trusted Publishing
+        run: npm install -g npm@latest
+
+      - name: Pack
+        run: npm pack
+
+      - name: Upload tarball
+        uses: actions/upload-artifact@v4
+        with:
+          name: npm-package
+          path: ./*.tgz
+
+      - name: Publish
+        run: |
+          npm publish \
+            --access public \
+            --provenance \
+            --tag "${{ inputs.tag }}" \
+            ${{ inputs.dry_run && '--dry-run' || '' }}
